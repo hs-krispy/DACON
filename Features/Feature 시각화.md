@@ -34,45 +34,33 @@ plt.show()
 #### 클래스별 피처 분포
 
 ```python
-scaler = MaxAbsScaler()
-train[:][cols] = scaler.fit_transform(train[:][cols]) 
-# 'class 피처를 제외하고 정규화'
-planet0 = train[y == 0] # 클래스 0
-planet1 = train[y == 1] # 클래스 1
-planet2 = train[y == 2] # 클래스 2
-bin = list(np.arange(0, 1.05, 0.05)) 
-# 피처의 값을 0 ~ 1 사이를 0.5 간격으로 나눈 것으로
-x_range = np.arange(0, 1.0, 0.05)
-for i in cols:
-    fig = plt.figure()
-    fig.suptitle(i, fontsize=16)
-    p0 = fig.add_subplot(3, 1, 1)
-    p1 = fig.add_subplot(3, 1, 2)
-    p2 = fig.add_subplot(3, 1, 3)
-    p0.set_title("class 0")
-    total_number = len(planet0) # 클래스 0의 전체 데이터 수
-    hist0, bins0 = np.histogram(planet0[i], bin)
-    # 각 값들의 빈도와 범위 리턴
-    hist0_normal = np.asarray(hist0) / total_number
-     # 각 값들의 빈도를 해당 클래스의 전체 데이터 수로 나누어서 정규화 
-    p0.set_xlim(0, 1.0) # x축 범위
-    p0.set_ylim(0, 1.0) # y축 범위
-    p0.bar(x_range, hist0_normal, width=0.2, edgecolor="b")
-    p1.set_title("class 1") 
-    total_number = len(planet1) # 클래스 1의 전체 데이터 수
-    hist1, bins1 = np.histogram(planet1[i], bin) 
-    hist1_normal = np.asarray(hist1) / total_number
-    p1.set_xlim(0, 1.0)
-    p1.set_ylim(0, 1.0)
-    p1.bar(x_range, hist1_normal, width=0.2, edgecolor="r")
-    p2.set_title("class 2")
-    total_number = len(planet2) # 클래스 2의 전체 데이터 수
-    hist2, bins2 = np.histogram(planet2[i], bin)
-    hist2_normal = np.asarray(hist2) / total_number
-    p2.set_xlim(0, 1.0)
-    p2.set_ylim(0, 1.0)
-    p2.bar(x_range, hist2_normal, width=0.2, edgecolor="k")
-    plt.show()
+scaler = StandardScaler()
+train = scaler.fit_transform(x)
+train = train[np.where(y == 1)] # class 1
+len_of_data = train.shape[0]
+
+plot_x = np.arange(-0.9, 1.0, 0.2)
+
+fig = plt.figure(figsize=(25, 13))
+
+for index in range(1, 20):
+    if index == 19:
+        break
+
+    hist, bins = np.histogram(train[:, index - 1], bins=np.arange(-1.0, 1.2, 0.2))
+    hist = hist / len_of_data
+
+
+    ax = fig.add_subplot(5, 4, index)
+
+    ax.set_ylim(0, 1.1)
+    ax.title.set_text(cols[index - 1])
+    ax.set_xticks(np.arange(-1.0, 1.2, 0.2))
+    ax.bar(plot_x, hist, width=0.2, edgecolor='k', alpha=0.7)
+    ax.grid(b=True, axis='y', color='gray', alpha=0.3, linestyle='--')
+
+plt.tight_layout()
+plt.show()
 ```
 
- MaxAbsScaler() - 피처의 값들이 -1 ~ 1 사이에(절댓값이 0 ~ 1 사이에) 오도록 재조정(음수 데이터가 존재하기 때문에 선택)
+StandardScaler - 각 feature의 평균이 0과 표준편차가 1이 되도록 변환
