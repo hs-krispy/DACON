@@ -29,3 +29,15 @@ print(final_features)
 기존의 18개 피처에서 5개의 피처('airmass_u', 'airmass_g', 'airmass_r', 'airmass_i', 'airmass_z')가 제거된 것을 알 수 있음
 
 (실험 결과 반복횟수를 더 늘려봐도 5개만 제거됨)
+
+### BoostARoota
+
+xgboost에 더 적합한 feature selection 방법
+
+```python
+xgb = XGBClassifier(n_estimators=1000, n_jobs=-1, learning_rate=0.05, subsample=0.65, max_depth=50, objective="multi:softmax", random_state=42)
+br = BoostARoota(clf=xgb, max_rounds=10, metric='mlogloss', silent=False)
+br.fit(x, y)
+print(br.keep_vars_)
+```
+
