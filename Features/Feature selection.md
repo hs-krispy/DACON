@@ -68,3 +68,17 @@ x_select = select.transform(x)
 TEST_select = select.transform(TEST)
 ```
 
+### permutation_importance
+
+피처들이 결과에 어떠한 영향을 미치는지 판별
+
+```python
+train_x, test_x, train_y, test_y = train_test_split(x, y, test_size=0.1, stratify=y, random_state=42)
+evals = [(test_x, test_y)]
+xgb = XGBClassifier(n_estimators=1000, n_jobs=-1, learning_rate=0.05, subsample=0.65, max_depth=50, objective="multi:softmax", random_state=42).fit(train_x, train_y, early_stopping_rounds=30, eval_set=evals)
+results = permutation_importance(xgb, test_x, test_y, n_jobs=-1, n_repeats=1, scoring='accuracy')
+importance = results.importances # 반복 횟수에 따라 importances_mean, importance_std 도 가능
+for i, v in enumerate(importance):
+	print('Feature: %0d, Score: %.5f' % (i, v))
+```
+
