@@ -73,12 +73,15 @@ TEST_select = select.transform(TEST)
 피처들이 결과에 어떠한 영향을 미치는지 판별
 
 ```python
+c = df.columns.tolist()
 train_x, test_x, train_y, test_y = train_test_split(x, y, test_size=0.1, stratify=y, random_state=42)
 evals = [(test_x, test_y)]
 xgb = XGBClassifier(n_estimators=1000, n_jobs=-1, learning_rate=0.05, subsample=0.65, max_depth=50, objective="multi:softmax", random_state=42).fit(train_x, train_y, early_stopping_rounds=30, eval_set=evals)
 results = permutation_importance(xgb, test_x, test_y, n_jobs=-1, n_repeats=1, scoring='accuracy')
 importance = results.importances # 반복 횟수에 따라 importances_mean, importance_std 도 가능
-for i, v in enumerate(importance):
-	print('Feature: %0d, Score: %.5f' % (i, v))
+res = [] # 각 피처에 대한 결과 값 저장 
+for v in importance:
+	res.append(round(v, 5))
+res = np.vstack([c, res]) # 피처별로 결과값을 한번에 보기위해 열을 기준으로 list를 합침   
 ```
 
