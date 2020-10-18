@@ -80,12 +80,75 @@ cross_validation 결과 0.9238317757009347의 정확도가 나왔지만 실제 �
 #### 2
 
 ```python
-기존의 피처에서 RFE로 얻어낸 23개의 피처로 진행해봄
+# 기존의 피처에서 RFE로 얻어낸 23개의 피처로 진행해봄
 ['c3', 'c4', 'c5', 'c8', 'c10', 'c12', 'c13', 'c14', 'c15', 'c16', 'c17', 'c18', 'c19', 'c20', 'c21', 'c23', 'c24', 'c25', 'c26', 'c27', 'c28', 'c29', 'c31']
 
 model = XGBClassifier(tree_method='gpu_hist', n_estimators=200, n_jobs=-1, learning_rate=0.25, subsample=0.7, max_depth=9, objective="multi:softprob", random_state=42)
 ```
 
-cross_validation 결과 0.9182242990654206의 정확도가 나왔지만 실제 제출결과는 0.92 정도가 나옴
+cross_validation 결과 0.9182242990654206의 정확도가 나옴
 
-#### 
+실제 제출결과는 **0.920305676855895**로 동일한 결과가 나옴
+
+#### 3
+
+```python
+# 피처 전체를 대상으로 데이터의 크기가 크지 않으므로 max_depth를 크게 설정해서 진행
+model = XGBClassifier(tree_method='gpu_hist', n_estimators=200, n_jobs=-1, learning_rate=0.25, subsample=0.7, max_depth=27, objective="multi:softprob", random_state=42)
+
+```
+
+cross_validation결과 0.9172897196261681의 정확도가 나옴
+
+실제 제출결과는 **0.922489082969432**로 acc가 상승한 결과가 나옴  
+
+#### 4
+
+```python
+df = pd.concat([x, Test], axis=0)
+for i in range(0, corr.shape[1]):
+    filtering = (corr.iloc[[i], :]) >= 0.77
+    select = np.where(filtering == True)[1]
+    new_f = df.iloc[:, select]
+    df['corr {}_mean'.format(c[i])] = new_f.mean(axis=1)
+    df['corr {}_var'.format(c[i])] = new_f.var(axis=1)
+    df['corr {}_std'.format(c[i])] = new_f.std(axis=1)
+    df['corr {}_sum'.format(c[i])] = new_f.sum(axis=1)
+    df['corr {}_median'.format(c[i])] = new_f.median(axis=1)
+    df['corr {}_maxmin'.format(c[i])] = new_f.max(axis=1) - new_f.min(axis=1)
+# 위의 코드로 파생변수를 생성하고 총 217개의 피처를 대상으로 진행
+filtering = (corr.iloc[[i], :]) >= 0.77
+# 상관관계 값을 조금 더 낮췄을 때 acc가 좀 더 잘나옴
+model = XGBClassifier(tree_method='gpu_hist', n_estimators=200, n_jobs=-1, learning_rate=0.25, subsample=0.7, max_depth=9, objective="multi:softprob", random_state=42)
+```
+
+cross_validation 결과 0.9212616822429908의 정확도가 나옴
+
+실제 제출결과는 **0.924672489082969**로 acc가 상승한 결과가 나옴 
+
+#### 5(SMOTE 적용)
+
+```python
+smote = SMOTE(k_neighbors=1, random_state=42)
+train_x, train_y = smote.fit_sample(train_x, train_y)
+# oversampling 기법인 smote를 적용
+model = XGBClassifier(tree_method='gpu_hist', n_estimators=300, n_jobs=-1, learning_rate=0.25, subsample=0.7, max_depth=9, objective="multi:softprob", random_state=42)
+
+average accuary : 0.9196261682242991  std : 0.00986855704763686
+# acc값이 약간 떨어짐
+
+model = XGBClassifier(tree_method='gpu_hist', n_estimators=300, n_jobs=-1, learning_rate=0.35, subsample=0.7, max_depth=9, objective="multi:softprob", random_state=42)
+# learning_rate를 올리면 acc값이 많이 상승
+average accuary : 0.9259345794392523  std : 0.008362397274847314
+        
+제출 결과 : acc - 0.924672489082969
+# oversampling 전의 결과와 차이가 없음
+
+model = XGBClassifier(tree_method='gpu_hist', n_estimators=300, n_jobs=-1, learning_rate=0.25, subsample=0.7, max_depth=12, objective="multi:softprob", random_state=42)
+# learning_rate를 그대로, max_depth를 증가시켜봄, 역시 acc가 상승
+average accuary : 0.9247663551401869  std : 0.010490628187216662
+
+제출 결과 : acc - 0.924672489082969
+# 역시 동일 oversampling은 큰 의미가 없는 것으로 판단
+```
+
