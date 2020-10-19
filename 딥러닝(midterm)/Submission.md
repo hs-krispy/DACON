@@ -152,3 +152,26 @@ average accuary : 0.9247663551401869  std : 0.010490628187216662
 # 역시 동일 oversampling은 큰 의미가 없는 것으로 판단
 ```
 
+#### 6
+
+```python
+for i in range(0, corr.shape[1]):
+    filtering = (corr.iloc[[i], :]) >= 0.77
+    select = np.where(filtering == True)[1]
+    new_f = df.iloc[:, select]
+    df['corr {}_mean'.format(c[i])] = new_f.mean(axis=1)
+    df['corr {}_var'.format(c[i])] = new_f.var(axis=1)
+    df['corr {}_std'.format(c[i])] = new_f.std(axis=1)
+    df['corr {}_sum'.format(c[i])] = new_f.sum(axis=1)
+    df['corr {}_max'.format(c[i])] = new_f.max(axis=1)
+    df['corr {}_min'.format(c[i])] = new_f.min(axis=1)
+    df['corr {}_median'.format(c[i])] = new_f.median(axis=1)
+    df['corr {}_maxmin'.format(c[i])] = new_f.max(axis=1) - new_f.min(axis=1)
+# 피처를 더 늘려봄 (279개)
+
+model = XGBClassifier(n_estimators=300, n_jobs=-1, learning_rate=0.15, subsample=0.7, max_depth=12, objective="multi:softprob", random_state=42)
+```
+
+cross_validation 결과 0.9221962616822431의 조금 더 상승한 정확도가 나옴
+
+실제 제출결과는 **0.925764192139738** 로 역시 acc가 상승한 결과가 나옴 (피처의 수에 비례한다고 생각해 볼 수 있음)
