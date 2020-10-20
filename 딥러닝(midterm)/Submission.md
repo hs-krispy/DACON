@@ -175,3 +175,15 @@ model = XGBClassifier(n_estimators=300, n_jobs=-1, learning_rate=0.15, subsample
 cross_validation 결과 0.9221962616822431의 조금 더 상승한 정확도가 나옴
 
 실제 제출결과는 **0.925764192139738** 로 역시 acc가 상승한 결과가 나옴 (피처의 수에 비례한다고 생각해 볼 수 있음)
+
+#### 7
+
+subsample, colsample_bytree, max_depth, learning_rate에 대해 간단한 parameter tuning 진행
+
+```python
+model = XGBClassifier(n_estimators=300, n_jobs=-1, learning_rate=0.35, subsample=0.7, max_depth=19, objective="multi:softprob", random_state=42)
+```
+
+cross_validation 결과 0.9238317757009347의 조금 더 상승한 정확도가 나옴
+
+하지만 실제 제출결과는 **0.925764192139738**로 동일한 acc 
