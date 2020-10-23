@@ -1,6 +1,33 @@
+##  Grid search optimization
+
+- 지정해준 파라미터들의 모든 조합을 시도해보는 Hyperparameter Optimization 방법
+
+```python
+param = {
+        'learning_rate': (0.1, 0.45, 'log-uniform'),
+        'min_child_weight': (0, 10),
+        'max_depth': (0, 50),
+        'subsample': (0.6, 1.0, 'uniform'),
+        'colsample_bytree': (0.6, 1.0, 'uniform'),
+        'colsample_bylevel': (0.6, 1.0, 'uniform')
+}
+
+xgb = XGBClassifier(n_estimators=400, n_jobs=-1, objective="multi:softprob", tree_method="exact", random_state=42)
+skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=123)
+gcv = GridSearchCV(xgb, param_grid=param_grid, cv=skf, scoring='accuracy', n_jobs=-1)
+gcv.fit(x, y)
+pp.pprint(gcv.best_params_)   # 최적의 파라미터 값
+pp.pprint(gcv.best_score_)    # 최고의 점수
+
+model = gcv.best_estimator_    # 최고의 모델
+y_pred = model.predict(Test).tolist()
+```
+
+
+
 ## Bayesian optimization
 
-모든 경우의 수를 시도해보는 Grid search optimization으로 많은 hyperparameter를 시도해보기에는 너무 많은 시간과 컴퓨팅 파워가 소모되어서 Bayesian optimization을 사용해 보았습니다.
+모든 경우의 수를 시도해보는 Grid search optimization으로 많은 hyperparameter를 시도해보기에는 너무 많은 시간과 컴퓨팅 파워가 소모되어서 Bayesian optimization도 사용해 보았습니다.
 
 
 
@@ -29,6 +56,7 @@ def status_print(optim_result):
         bayes_cv_tuner.best_params_
     ))
 
+skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=123)
 xgb = XGBClassifier(n_estimators=400, n_jobs=-1, objective="multi:softprob", tree_method="exact", random_state=42)
 bayes_cv_tuner = BayesSearchCV(estimator=xgb, search_spaces=param, scoring='accuracy', cv=skf, n_jobs=-1, n_iter=30, verbose=1, refit=True, random_state=42)
 bayes_cv_tuner.fit(x.values, y.values, callback=status_print)
