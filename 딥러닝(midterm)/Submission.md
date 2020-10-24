@@ -186,4 +186,18 @@ model = XGBClassifier(n_estimators=300, n_jobs=-1, learning_rate=0.35, subsample
 
 cross_validation 결과 0.9238317757009347의 조금 더 상승한 정확도가 나옴
 
-하지만 실제 제출결과는 **0.925764192139738**로 동일한 acc 
+하지만 실제 제출결과는 **0.925764192139738** 에 못미치는 결과가 나옴
+
+#### 8
+
+```python
+estimators = [('rf', RandomForestClassifier(n_jobs=-1, n_estimators=18000, min_samples_split=2, min_samples_leaf=1, max_features='auto', bootstrap=False, random_state=42, verbose=1)),
+               ('xgb', XGBClassifier(random_state=42, n_estimators=3000, n_jobs=-1, colsample_bylevel=0.8502272137355362, min_child_weight=0, learning_rate=0.054352214755695336, max_delta_step=17, max_depth=18, subsample=0.5770719653236287)),]
+# randomforest와 xgboost를 이용해서 stacking
+
+model = StackingClassifier(estimators=estimators, final_estimator=XGBClassifier(random_state=42, n_jobs=-1, n_estimators=3000, verbosity=1), stack_method="predict", n_jobs=-1, verbose=1)
+```
+
+cross_validation 결과 0.9196261682242991의 정확도가 나옴
+
+실제 제출결과는 **0.925764192139738** 에 못미치는 결과가 나옴
