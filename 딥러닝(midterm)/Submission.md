@@ -201,3 +201,15 @@ model = StackingClassifier(estimators=estimators, final_estimator=XGBClassifier(
 cross_validation 결과 0.9196261682242991의 정확도가 나옴
 
 실제 제출결과는 **0.925764192139738** 에 못미치는 결과가 나옴
+
+#### Final
+
+```python
+model = XGBClassifier(tree_method="exact", n_estimators=300, n_jobs=-1, learning_rate=0.3, subsample=0.75, max_depth=16, objective="multi:softprob", random_state=42)
+smote = SMOTE(random_state=42)
+x, y = smote.fit_sample(x, y)
+model.fit(x, y)
+```
+
+실제 제출결과 **0.9290**
+
