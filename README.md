@@ -2,15 +2,19 @@
 
 ### 시스템 품질 변화로 인한 사용자 불편 예지
 
+**[바로가기](https://github.com/hs-krispy/DACON/tree/master/%EC%82%AC%EC%9A%A9%EC%9E%90%20%EB%B6%88%ED%8E%B8%20%EC%98%88%EC%A7%80)**
+
 
 
 ### 천체 유형 분류
+
+**[바로가기](https://github.com/hs-krispy/DACON/tree/master/%EC%B2%9C%EC%B2%B4%20%EC%9C%A0%ED%98%95%20%EB%B6%84%EB%A5%98)**
 
 **제출 결과 - 0.935 (24 / 101)**
 
 
 
-### Review(대회 후 느낀점)
+#### Review(대회 후 느낀점)
 
 이런 대회를 처음 접해보고 그냥 한번 해보자는 생각으로 시작했지만 막상 해보다 보니 흥미도 생기고 오기도 생겨서 미숙하지만 나름 열심히 진행했던 것 같다.
 
