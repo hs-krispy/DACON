@@ -1,10 +1,12 @@
-## 천체 유형 분류 알고리즘
+## Dacon AI 경진대회
 
-DACON에서 진행하는 데이터 분석 경진대회에서 천체 유형을 분류하는 알고리즘에 대한 내용을 기록하는 저장소
+### 시스템 품질 변화로 인한 사용자 불편 예지
 
 
 
-**제출 결과 - 0.935 (24th)**
+### 천체 유형 분류
+
+**제출 결과 - 0.935 (24 / 101)**
 
 
 
@@ -20,5 +22,7 @@ Random forest, Xgboost, Lightgbm 등 알고리즘들 하나하나부터 SelectKb
 
 
 
- 
+##### [번외(딥러닝 수업의 경진대회)](https://github.com/hs-krispy/DACON/tree/master/%EB%94%A5%EB%9F%AC%EB%8B%9D(midterm))
+
+
 
