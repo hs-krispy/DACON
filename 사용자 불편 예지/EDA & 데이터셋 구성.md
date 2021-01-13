@@ -175,11 +175,20 @@ model = LGBMClassifier(random_state=42)
 ```python
 encoder = LabelEncoder()
 
+
+def encoding(train_df, test_df):
+    train_list = train_df.unique().tolist()
+    test_list = test_df.unique().tolist()
+    union_list = list(set().union(train_list, test_list))
+    encoder.fit(union_list)
+    train_df = encoder.transform(train_df)
+    test_df = encoder.transform(test_df)
+
+    return train_df, test_df
+
 # 확인 결과 train_err, test_err의 model_nm은 0 ~ 8로 모두 일치
-train_model_nm = encoder.fit_transform(train_err['model_nm'])
-test_model_nm = encoder.transform(test_err['model_nm'])
-train_err['model_nm'] = train_model_nm
-test_err['model_nm'] = test_model_nm
+train_err['model_nm'] = encoder.fit_transform(train_err['model_nm'])
+test_err['model_nm'] = encoder.transform(test_err['model_nm'])
 
 train_fwver = train_err['fwver'].unique().tolist()
 test_fwver = test_err['fwver'].unique().tolist()
@@ -187,9 +196,7 @@ union_fwver = list(set().union(train_fwver, test_fwver))
 print(len(train_fwver), len(test_fwver), len(union_fwver))
 # 37 40 46
 # 확인 결과 train_fwver과 test_fwver의 label 개수가 다름
-encoder.fit(union_fwver)
-train_err['fwver'] = encoder.transform(train_err['fwver'])
-test_err['fwver'] = encoder.transform(test_err['fwver'])
+train_err['fwver'], test_err['fwver'] = encoding(train_err['fwver'], test_err['fwver'])
 
 train_errcode = train_err['errcode'].unique().tolist()
 test_errcode = test_err['errcode'].unique().tolist()
@@ -197,9 +204,7 @@ union_errcode = list(set().union(train_errcode, test_errcode))
 print(len(train_errcode), len(test_errcode), len(union_errcode))
 # 2805 2955 4353
 # 확인 결과 train_errcode, test_errcode의 label 개수가 다름
-encoder.fit(union_errcode)
-train_err['errcode'] = encoder.transform(train_err['errcode'])
-test_err['errcode'] = encoder.transform(test_err['errcode'])
+train_err['errcode'], test_err['errcode'] = encoding(train_err['errcode'], test_err['errcode'])
 ```
 
 LabelEncoder를 통해 문자열로 구성되어 있는 피처들을 숫자형 카테고리 값으로 변환
@@ -373,6 +378,69 @@ print(np.mean(score))
 
 train_quality, test_quality 데이터를 결합해서 생성한 새로운 데이터셋은 0.001 정도 AUC 감소를 보임
 
+**train_err_data, test_err_data**
+
+err_data에서 time 피처를 활용해서 errors_per_day라는 새로운 피처를 생성
+
+```python
+def make_datetime(x):
+    # string 타입의 Time column을 datetime 타입으로 변경
+    x = str(x)
+    year = int(x[:4])
+    month = int(x[4:6])
+    day = int(x[6:8])
+    return dt.datetime(year, month, day)
+
+# 각 유저별 하루동안 발생한 평균 에러의 갯수
+def cal_errors_per_day(df):
+    df['datetime'] = df['time'].apply(make_datetime)
+    unique_date = df.groupby('user_id')['datetime'].unique().values
+    # 각 유저별 err 발생 날짜의 갯수
+    count_date = []
+    for i in unique_date:
+        count_date.append(len(i))
+
+    # 각 유저별 발생한 에러의 횟수
+    id_error = df.groupby('user_id')['errtype'].count().values
+    avg_err = []
+    for idx, val in enumerate(count_date):
+        avg_err.append(id_error[idx] / val)
+
+    return avg_err
+
+
+train_avg_err = cal_errors_per_day(train_err)
+test_avg_err = cal_errors_per_day(test_err)
+```
+
+errors_per_day 피처를 추가한 데이터셋을 같은 조건에서 학습을 진행
+
+```python
+lgb = LGBMClassifier(random_state=42)
+
+def validation(model, x, y):
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    score = []
+    for train_idx, valid_idx in skf.split(x, y):
+        train_x, valid_x = x.iloc[train_idx], x.iloc[valid_idx]
+        train_y, valid_y = y[train_idx], y[valid_idx]
+        evals = [(valid_x, valid_y)]
+        model.fit(train_x, train_y, early_stopping_rounds=30, eval_set=evals)
+        valid_prob = model.predict_proba(valid_x)[:, 1]
+        auc_score = roc_auc_score(valid_y, valid_prob)
+        score.append(auc_score)
+
+    return np.mean(score)
+
+avg_AUC = validation(lgb, X, y)
+print(avg_AUC)
+
+# validation score - 0.814518
+# submission score - 0.8138071294	
+```
+
+
+
 ### feature_importance
 
 ```python
@@ -391,23 +459,33 @@ for i in range(13):
 <img src="https://user-images.githubusercontent.com/58063806/104318808-42ed5b00-5523-11eb-9b78-9d0e8d836c52.png" width=100% />
 
 ```python
-for i in range(52, 65):
-    train = train.rename({i: i - 1}, axis='columns')
 train.columns = label
 train_prob = pd.read_csv(PATH+'train_problem_data.csv')
 problem = np.zeros(15000)
 problem[train_prob.user_id.unique()-10000] = 1
 problem = pd.DataFrame(problem)
-x = train
+X = train
 y = problem
-model = LGBMClassifier(random_state=42)
-model.fit(x, y)
+lgb = LGBMClassifier(random_state=42)
 
-fig, ax = plt.subplots(figsize=(15, 9))
-plot_importance(model, ax=ax)
-plt.show()
+def train(model, X, y):
+    model.fit(X, y)
+
+def feature_importance(model):
+    fig, ax = plt.subplots(figsize=(15, 9))
+    plot_importance(model, ignore_zero=False, ax=ax)
+    plt.savefig('feature_importance.png')
+
+train(lgb, X, y)
+feature_importance(lgb)
 ```
 
 <img src="https://user-images.githubusercontent.com/58063806/104322586-7979a480-5528-11eb-9743-6b2b1de24f3e.png" width=100% />
 
 피처 중요도 차트를 본 결과 quality 피처들 대부분이 낮은 중요도를 보임 (Feature selection 요망)
+
+<img src="https://user-images.githubusercontent.com/58063806/104397794-dc068b00-5590-11eb-8d30-1ae927a24892.png" width=100% />quality를 제외하고 err data만 이용한 결과
+
+<img src="https://user-images.githubusercontent.com/58063806/104414954-71ffdd00-55b4-11eb-9509-36c1e4f5d293.png" width=100% />
+
+err_data에 errors_per_day 피처를 추가한 결과 (추가된 errors_per_day 피처가 높은 중요도를 보임)
