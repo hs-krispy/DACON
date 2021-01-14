@@ -54,15 +54,6 @@ print(train_quality.isnull().sum())
 여러 피처에서 상당히 많은 양의 결측값이 관측
 
 ```python
-# fwver 피처는 예상이 불가하므로 삭제
-train_quality.dropna(subset=['fwver'], inplace=True) 
-```
-
-<img src="https://user-images.githubusercontent.com/58063806/104149828-151cef00-541b-11eb-9dc7-949d51ef1c41.png" width=20% />
-
-여러 피처에서 상당히 많은 양의 결측값이 관측
-
-```python
 train_quality['fwver'].fillna("N", inplace=True)
 train_quality['quality_0'].fillna("N", inplace=True)
 train_quality['quality_2'].fillna("N", inplace=True)
