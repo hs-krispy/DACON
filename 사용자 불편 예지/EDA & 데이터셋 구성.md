@@ -58,14 +58,18 @@ print(train_quality.isnull().sum())
 train_quality.dropna(subset=['fwver'], inplace=True) 
 ```
 
-<img src="https://user-images.githubusercontent.com/58063806/104150486-4b5b6e00-541d-11eb-8504-33ca3f369057.png" width=20%/>
+<img src="https://user-images.githubusercontent.com/58063806/104149828-151cef00-541b-11eb-9dc7-949d51ef1c41.png" width=20% />
 
-남은 피처들에 대해서는 value들의 빈도를 구하고 가장 많은 빈도로 나타난 value로 대체 
+여러 피처에서 상당히 많은 양의 결측값이 관측
 
 ```python
-missing_fill_val = {'quality_0': 0, 'quality_2': 0, 'quality_5': 0}
-train_quality.fillna(missing_fill_val, inplace=True)
+train_quality['fwver'].fillna("N", inplace=True)
+train_quality['quality_0'].fillna("N", inplace=True)
+train_quality['quality_2'].fillna("N", inplace=True)
+train_quality['quality_5'].fillna("N", inplace=True)
 ```
+
+각 피처들이 범주형 변수라고 판단하고 결측값을 N으로 채움
 
 **train_problem_data**
 
@@ -73,6 +77,8 @@ train_quality.fillna(missing_fill_val, inplace=True)
 - 불만이 접수된 시간 이후에도 train_err_data를 보면 에러 로그는 계속 발생했음을 알 수 있음
 
 **test_err_data**
+
+test_err에는 user_id 43262에 대한 정보가 없음(에러 발생 X)
 
 ```python
 print(test_err.isnull().sum())
@@ -95,14 +101,15 @@ print(test_quality.isnull().sum())
 
 <img src="https://user-images.githubusercontent.com/58063806/104280404-33ecb580-54ef-11eb-91e8-d8965ffc2ada.png" width=20% />
 
-train_quality_data와 마찬가지로 fwver 피처에 대해서는 삭제를 하고 나머지 피처들은  value들의 빈도를 구하고 가장 많은 빈도로 나타난 value로 대체 
-
 ```python
-missing_fill_val = {'quality_0': '0', 'quality_1': '0', 'quality_2': '0', 'quality_5': '0'}
-test_quality.fillna(missing_fill_val, inplace=True)
+test_quality['fwver'].fillna("N", inplace=True)
+test_quality['quality_0'].fillna("N", inplace=True)
+test_quality['quality_1'].fillna("N", inplace=True)
+test_quality['quality_2'].fillna("N", inplace=True)
+test_quality['quality_5'].fillna("N", inplace=True)
 ```
 
-### 기본적인 데이터셋 생성
+train_quality와 마찬가지로 결측값을 모두 N으로 채움기본적인 데이터셋 생성
 
 ```python
 train_user_id_max = 24999
@@ -176,42 +183,34 @@ model = LGBMClassifier(random_state=42)
 encoder = LabelEncoder()
 
 
-def encoding(train_df, test_df):
-    train_list = train_df.unique().tolist()
-    test_list = test_df.unique().tolist()
-    union_list = list(set().union(train_list, test_list))
+def encoding(train_err, test_err, train_qual=None, test_qual=None):
+    train_err_list = train_err.unique().tolist()
+    test_err_list = test_err.unique().tolist()
+    if train_qual is not None:
+        train_qual_list = train_qual.unique().tolist()
+        test_qual_list = test_qual.unique().tolist()
+        union_list = list(set().union(train_err_list, train_qual_list, test_err_list, test_qual_list))
+    else:
+        union_list = list(set().union(train_err_list, test_err_list))
+    print(len(union_list))
     encoder.fit(union_list)
-    train_df = encoder.transform(train_df)
-    test_df = encoder.transform(test_df)
+    encode_train_err = encoder.transform(train_err)
+    encode_test_err = encoder.transform(test_err)
+    if train_qual is not None:
+        encode_train_qual = encoder.transform(train_qual)
+        encode_test_qual = encoder.transform(test_qual)
+        return encode_train_err, encode_test_err, encode_train_qual, encode_test_qual
+    return encode_train_err, encode_test_err
 
-    return train_df, test_df
 
-# 확인 결과 train_err, test_err의 model_nm은 0 ~ 8로 모두 일치
-train_err['model_nm'] = encoder.fit_transform(train_err['model_nm'])
-test_err['model_nm'] = encoder.transform(test_err['model_nm'])
-
-train_fwver = train_err['fwver'].unique().tolist()
-test_fwver = test_err['fwver'].unique().tolist()
-union_fwver = list(set().union(train_fwver, test_fwver))
-print(len(train_fwver), len(test_fwver), len(union_fwver))
-# 37 40 46
-# 확인 결과 train_fwver과 test_fwver의 label 개수가 다름
-train_err['fwver'], test_err['fwver'] = encoding(train_err['fwver'], test_err['fwver'])
-
-train_errcode = train_err['errcode'].unique().tolist()
-test_errcode = test_err['errcode'].unique().tolist()
-union_errcode = list(set().union(train_errcode, test_errcode))
-print(len(train_errcode), len(test_errcode), len(union_errcode))
-# 2805 2955 4353
-# 확인 결과 train_errcode, test_errcode의 label 개수가 다름
+train_err['model_nm'], test_err['model_nm'] = encoding(train_err['model_nm'], test_err['model_nm'])
+train_err['fwver'], test_err['fwver'], train_quality['fwver'], test_quality['fwver'] = encoding(train_err['fwver'], test_err['fwver'], train_quality['fwver'], test_quality['fwver'])
 train_err['errcode'], test_err['errcode'] = encoding(train_err['errcode'], test_err['errcode'])
 ```
 
 LabelEncoder를 통해 문자열로 구성되어 있는 피처들을 숫자형 카테고리 값으로 변환
 
-<img src="https://user-images.githubusercontent.com/58063806/104254971-57960880-54bb-11eb-8c89-4cc9bc7b53a0.png" width=80% />
-
-각각 9, 46, 4353개의 값을 가짐
+각각 9, 48, 4353개의 값을 가짐
 
 ```python
 # ueser_id가 10000부터 24999까지 총 15000개가 연속적으로 존재.
@@ -440,6 +439,225 @@ print(avg_AUC)
 ```
 
 
+
+**각 유저별 하루동안 발생한 평균 에러의 갯수**
+
+```python
+def make_datetime(x):
+    # string 타입의 Time column을 datetime 타입으로 변경
+    x = str(x)
+    year = int(x[:4])
+    month = int(x[4:6])
+    day = int(x[6:8])
+	
+    return dt.datetime(year, month, day)
+
+def cal_errors_per_day(df):
+    df['datetime'] = df['time'].apply(make_datetime)
+    unique_date = df.groupby('user_id')['datetime'].unique().values
+    # 각 유저별 err 발생 날짜의 갯수
+    count_date = []
+    for i in unique_date:
+        count_date.append(len(i))
+
+    # 각 유저별 발생한 에러의 횟수
+    id_error = df.groupby('user_id')['errtype'].count().values
+    avg_err = []
+    for idx, val in enumerate(count_date):
+        avg_err.append(id_error[idx] / val)
+
+    return avg_err
+
+
+def cal_errors_per_day2(df):
+    df['datetime'] = df['time'].apply(make_datetime)
+    unique_date = df.groupby('user_id')['datetime'].unique().values
+    # 각 유저별 err 발생 날짜의 갯수
+    count_date = []
+    for i in unique_date:
+        count_date.append(len(i))
+
+    # 각 유저별 발생한 에러의 횟수
+    id_error = df.groupby('user_id')['errtype'].count().values
+    avg_err = []
+    for idx, val in enumerate(count_date[:13682]):
+        avg_err.append(id_error[idx] / val)
+    # user_id 43682에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
+    avg_err.append(0)
+    for idx, val in enumerate(count_date[13682:]):
+        avg_err.append(id_error[13682 + idx] / val)
+
+    return avg_err
+
+
+train_avg_err = cal_errors_per_day(train_err)
+test_avg_err = cal_errors_per_day2(test_err)
+```
+
+**각 유저별 에러가 발생한 간격**
+
+```python
+def make_datetime(x):
+    # string 타입의 Time column을 datetime 타입으로 변경
+    x = str(x)
+    year = int(x[:4])
+    month = int(x[4:6])
+    day = int(x[6:8])
+    hour = int(x[8:10])
+    mim = int(x[10:12])
+    sec = int(x[12:14])
+    return dt.datetime(year, month, day, hour, mim, sec)
+
+def cal_time_interval(df):
+    df['datetime'] = df['time'].apply(make_datetime)
+    # 각 유저별 에러발생 시간
+    times = df['datetime'].values
+    # 각 유저별 에러발생 횟수
+    count_time = df.groupby('user_id')['datetime'].count().values
+    time_interval = []
+    init = 0
+    for c in count_time:
+        if c == 1:
+            time_interval.append(0)
+            init += 1
+            continue
+        sum = 0
+        pre_t = 0
+        for idx, t in enumerate(times[init: init + c]):
+            if idx == 0:
+                pre_t = t
+                continue
+            sum += t - pre_t
+            pre_t = t
+        # 각 유저별 평균적으로 에러가 발생하는 간격
+        time_interval.append(sum / (c - 1))
+        init += c
+
+    return time_interval
+
+
+def cal_time_interval2(df):
+    df['datetime'] = df['time'].apply(make_datetime)
+    # 각 유저별 에러발생 시간
+    times = df['datetime'].values
+    # 각 유저별 에러발생 횟수
+    count_time = df.groupby('user_id')['datetime'].count().values
+    time_interval = []
+    init = 0
+    for c in count_time:
+        if c == 1:
+            time_interval.append(0)
+            init += 1
+            continue
+        sum = 0
+        pre_t = 0
+        for idx, t in enumerate(times[init: init + c]):
+            if idx == 0:
+                pre_t = t
+                continue
+            sum += t - pre_t
+            pre_t = t
+        # 각 유저별 평균적으로 에러가 발생하는 간격
+        time_interval.append(sum / (c - 1))
+        # user_id 43682에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
+        if len(time_interval) == 13682:
+            time_interval.append(0)
+        init += c
+
+    return time_interval
+
+
+train_time_interval = cal_time_interval(train_err)
+test_time_interval = cal_time_interval2(test_err)
+```
+
+**각 유저별로 errtype들의 발생빈도, 가장 많이 발생한 errcode, 각 model들의 사용빈도**
+
+```python
+sub_data = train_err[['user_id', 'errtype', 'errcode', 'model_nm']].values
+dataset = np.zeros((train_user_number, 53))
+
+count_errcode = np.zeros(4353)
+pre_idx = 10000
+for idx, val in enumerate(train_avg_err):
+    dataset[idx][51] = val
+for idx, val in enumerate(train_time_interval):
+    dataset[idx][52] = val
+for person_idx, errtype, errcode, model_nm in tqdm(sub_data):
+    if pre_idx != person_idx:
+        errccode = count_errcode.argmax()
+        dataset[pre_idx - train_user_id_min][41] = errcode
+        count_errcode = np.zeros(4353)
+        pre_idx = person_idx
+    if errtype > 29:
+        dataset[person_idx - train_user_id_min][errtype - 2] += 1
+    else:
+        # 각 에러 타입 발생빈도
+        dataset[person_idx - train_user_id_min][errtype - 1] += 1
+	# 각 모델의 사용 빈도
+    dataset[person_idx - train_user_id_min][42 + model_nm] += 1
+    # 가장 많이 관측된 에러 코드 판별
+    count_errcode[errcode] += 1  
+
+dataset = pd.DataFrame(dataset, columns=label)
+dataset.to_csv("train_dataset.csv", index=False)
+
+sub_data = test_err[['user_id', 'errtype', 'errcode', 'model_nm']].values
+dataset = np.zeros((test_user_number, 53))
+
+count_errcode = np.zeros(4353)
+pre_idx = 30000
+for idx, val in enumerate(test_avg_err):
+    dataset[idx][51] = val
+for idx, val in enumerate(test_time_interval):
+    dataset[idx][52] = val
+for person_idx, errtype, errcode, model_nm in tqdm(sub_data):
+    if pre_idx != person_idx:
+        errccode = count_errcode.argmax()
+        dataset[pre_idx - test_user_id_min][41] = errcode
+        count_errcode = np.zeros(4353)
+        pre_idx = person_idx
+    if errtype > 29:
+        dataset[person_idx - test_user_id_min][errtype - 2] += 1
+    else:
+        # 에러타입 발생빈도
+        dataset[person_idx - test_user_id_min][errtype - 1] += 1
+    # 해당 모델 사용 빈도    
+    dataset[person_idx - test_user_id_min][42 + model_nm] += 1  
+    # 가장 많이 관측된 에러 코드 판별
+    count_errcode[errcode] += 1  
+
+dataset = pd.DataFrame(dataset, columns=label)
+dataset.to_csv("test_dataset.csv", index=False)
+```
+
+해당 데이터셋으로 동일조건에서 학습
+
+```python
+lgb = LGBMClassifier(random_state=42)
+
+def validation(model, x, y):
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    score = []
+    for train_idx, valid_idx in skf.split(x, y):
+        train_x, valid_x = x.iloc[train_idx], x.iloc[valid_idx]
+        train_y, valid_y = y[train_idx], y[valid_idx]
+        evals = [(valid_x, valid_y)]
+        model.fit(train_x, train_y, early_stopping_rounds=30, eval_set=evals)
+        valid_prob = model.predict_proba(valid_x)[:, 1]
+        auc_score = roc_auc_score(valid_y, valid_prob)
+        score.append(auc_score)
+
+    return np.mean(score)
+
+avg_AUC = validation(lgb, X, y)
+print(avg_AUC)
+# validation score - 0.8129683
+# after standard scale score - 0.81278475
+# submission score - 0.8136799738	
+```
+
+### 
 
 ### feature_importance
 
