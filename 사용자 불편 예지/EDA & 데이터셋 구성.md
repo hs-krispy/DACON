@@ -471,12 +471,12 @@ def cal_errors_per_day2(df):
     # 각 유저별 발생한 에러의 횟수
     id_error = df.groupby('user_id')['errtype'].count().values
     avg_err = []
-    for idx, val in enumerate(count_date[:13682]):
+    for idx, val in enumerate(count_date[:13262]):
         avg_err.append(id_error[idx] / val)
-    # user_id 43682에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
+    # user_id 43262에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
     avg_err.append(0)
-    for idx, val in enumerate(count_date[13682:]):
-        avg_err.append(id_error[13682 + idx] / val)
+    for idx, val in enumerate(count_date[13262:]):
+        avg_err.append(id_error[13262 + idx] / val)
 
     return avg_err
 
@@ -550,8 +550,8 @@ def cal_time_interval2(df):
             pre_t = t
         # 각 유저별 평균적으로 에러가 발생하는 간격
         time_interval.append(sum / (c - 1))
-        # user_id 43682에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
-        if len(time_interval) == 13682:
+        # user_id 43262에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
+        if len(time_interval) == 13262:
             time_interval.append(0)
         init += c
 
@@ -678,12 +678,12 @@ def cal_errors_per_day(df, which):
         for idx, val in enumerate(count_date):
             avg_err.append(id_error[idx] / val)
     else:
-        for idx, val in enumerate(count_date[:13682]):
+        for idx, val in enumerate(count_date[:13262]):
             avg_err.append(id_error[idx] / val)
-        # user_id 43682에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
+        # user_id 43262에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
         avg_err.append(0)
-        for idx, val in enumerate(count_date[13682:]):
-            avg_err.append(id_error[13682 + idx] / val)
+        for idx, val in enumerate(count_date[13262:]):
+            avg_err.append(id_error[13262 + idx] / val)
 
     return avg_err
 
@@ -721,8 +721,8 @@ def cal_time_interval(df, which):
         time = float(time[:-12])
         time_interval.append(time)
         if which == "test":
-            # user_id 43682에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
-            if len(time_interval) == 13682:
+            # user_id 43262에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
+            if len(time_interval) == 13262:
                 time_interval.append(0)
         init += c
         
