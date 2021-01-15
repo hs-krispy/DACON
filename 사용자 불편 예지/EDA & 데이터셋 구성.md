@@ -648,7 +648,133 @@ print(avg_AUC)
 # submission score - 0.8136799738	
 ```
 
-### 
+```python
+print(train_err.groupby('user_id')['model_nm'].nunique())
+```
+
+데이터를 더 살펴본 결과 대부분의 유저에서 하나의 모델만 사용하는 것으로 나타남
+
+error_time_interval의 수치들을 0 ~ 1사이의 값으로 scaling해서 다시 데이터셋 생성
+
+```python
+label = sorted(train_err['errtype'].unique().tolist())
+for i, val in enumerate(label):
+    label[i] = "errtype_" + str(val)
+label.extend(['errcode', 'model_nm', 'errors_per_day', 'error_time_interval'])
+
+# 각 유저별 하루동안 발생한 평균 에러의 갯수
+def cal_errors_per_day(df, which):
+    df['datetime'] = df['time'].apply(make_datetime)
+    unique_date = df.groupby('user_id')['datetime'].unique().values
+    # 각 유저별 err 발생 날짜의 갯수
+    count_date = []
+    for i in unique_date:
+        count_date.append(len(i))
+
+    # 각 유저별 발생한 에러의 횟수
+    id_error = df.groupby('user_id')['errtype'].count().values
+    avg_err = []
+    if which == "train":
+        for idx, val in enumerate(count_date):
+            avg_err.append(id_error[idx] / val)
+    else:
+        for idx, val in enumerate(count_date[:13682]):
+            avg_err.append(id_error[idx] / val)
+        # user_id 43682에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
+        avg_err.append(0)
+        for idx, val in enumerate(count_date[13682:]):
+            avg_err.append(id_error[13682 + idx] / val)
+
+    return avg_err
+
+
+train_avg_err = cal_errors_per_day(train_err, "train")
+test_avg_err = cal_errors_per_day(test_err, "test")
+
+
+# 각 유저별 에러가 발생한 간격
+def cal_time_interval(df, which):
+    df['datetime'] = df['time'].apply(make_datetime2)
+    # 각 유저별 에러발생 시간
+    times = df['datetime'].values
+    # 각 유저별 에러발생 횟수
+    count_time = df.groupby('user_id')['datetime'].count().values
+    time_interval = []
+    init = 0
+
+    for c in count_time:
+        if c == 1:
+            time_interval.append(0)
+            init += 1
+            continue
+        sum = 0
+        pre_t = 0
+        for idx, t in enumerate(times[init: init + c]):
+            if idx == 0:
+                pre_t = t
+                continue
+            sum += t - pre_t
+            pre_t = t
+        # 각 유저별 평균적으로 에러가 발생하는 간격
+        time = sum / (c - 1)
+        time = str(time)
+        time = float(time[:-12])
+        time_interval.append(time)
+        if which == "test":
+            # user_id 43682에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
+            if len(time_interval) == 13682:
+                time_interval.append(0)
+        init += c
+        
+    # 값을 0 ~ 1 사이로 스케일링
+    scaler = MinMaxScaler()
+    time_interval = np.array(time_interval).reshape(-1, 1)
+    time_interval = scaler.fit_transform(time_interval)
+    return time_interval
+
+
+train_time_interval = cal_time_interval(train_err, "train")
+test_time_interval = cal_time_interval(test_err, "test")
+
+
+def making_dataset(df, user_number, user_id_min, avg_err, time_interval):
+    sub_data = df[['user_id', 'errtype', 'errcode', 'model_nm']].values
+    dataset = np.zeros((user_number, 53))
+
+    count_errcode = np.zeros(4353)
+    pre_idx = user_id_min
+    for idx, (avg_err, time_interval) in enumerate(zip(avg_err, time_interval)):
+        dataset[idx][51] = avg_err
+        dataset[idx][52] = time_interval
+    for person_idx, errtype, errcode, model_nm in tqdm(sub_data):
+        if pre_idx != person_idx:
+            errcode = count_errcode.argmax()
+            dataset[pre_idx - user_id_min][41] = errcode
+            count_errcode = np.zeros(4353)
+            pre_idx = person_idx
+        if errtype > 29:
+            dataset[person_idx - user_id_min][errtype - 2] += 1
+        else:
+            dataset[person_idx - user_id_min][errtype - 1] += 1  # 에러타입 발생빈도
+        # 각 모델의 사용 빈도
+        dataset[person_idx - user_id_min][42 + model_nm] += 1
+        count_errcode[errcode] += 1  # 가장 많이 관측된 에러 코드 판별
+
+    dataset = pd.DataFrame(dataset, columns=label)
+    dataset.to_csv("train_dataset.csv", index=False)
+    return dataset
+
+
+
+making_dataset(train_err, train_user_number, train_user_id_min, train_model_nm, train_avg_err, train_time_interval, "train")
+making_dataset(test_err, test_user_number, test_user_id_min, test_model_nm, test_avg_err, test_time_interval, "test")
+```
+
+```python
+validation score - 0.8135581999999999
+```
+
+
 
 ### feature_importance
 
