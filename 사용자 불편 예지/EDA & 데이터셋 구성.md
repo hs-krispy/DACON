@@ -771,7 +771,8 @@ making_dataset(test_err, test_user_number, test_user_id_min, test_model_nm, test
 ```
 
 ```python
-validation score - 0.8135581999999999
+validation score - 0.8132780000000001
+submission score - 0.8148646809
 ```
 
 
@@ -824,3 +825,7 @@ feature_importance(lgb)
 <img src="https://user-images.githubusercontent.com/58063806/104414954-71ffdd00-55b4-11eb-9509-36c1e4f5d293.png" width=100% />
 
 err_data에 errors_per_day 피처를 추가한 결과 (추가된 errors_per_day 피처가 높은 중요도를 보임)
+
+<img src="C:\Users\0864h\AppData\Roaming\Typora\typora-user-images\image-20210116000157967.png" width=100% />
+
+error_time_interval 추가 
