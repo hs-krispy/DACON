@@ -775,6 +775,35 @@ validation score - 0.8132780000000001
 submission score - 0.8148646809
 ```
 
+**각 유저별로 시간대에 에러 발생 빈도수**
+
+```python
+def hours(df, user_number, which):
+    dataset = np.zeros((user_number, 24))
+    df['datetime'] = df['time'].apply(return_time)
+    user_hours = df.groupby('user_id')['datetime'].unique().values.tolist()
+    hour_bins = df.groupby(['user_id', 'datetime'])['errtype'].count().values.tolist()
+    init = 0
+    for idx, id_hours in enumerate(user_hours):
+        id_hours = sorted(id_hours)
+        hb = hour_bins[init: init + len(id_hours)]
+        init += len(id_hours)
+        # 각 유저별 시간대와 해당 시간대에 에러 발생 빈도수
+        if which == "test" and idx >= 13262:
+            for hours, bins in zip(id_hours, hb):
+                dataset[idx + 1][hours] = bins
+        else:
+            for hours, bins in zip(id_hours, hb):
+                dataset[idx][hours] = bins
+
+    return dataset
+```
+
+```python
+validation score - 0.8141719000000001
+submission score - 0.809710857	
+```
+
 
 
 ### feature_importance
@@ -829,3 +858,7 @@ err_data에 errors_per_day 피처를 추가한 결과 (추가된 errors_per_day 
 <img src="C:\Users\0864h\AppData\Roaming\Typora\typora-user-images\image-20210116000157967.png" width=100% />
 
 error_time_interval 추가 
+
+<img src="https://user-images.githubusercontent.com/58063806/104753134-ebf1bb00-579a-11eb-8246-31d80480940e.png" width=100% />
+
+시간대에 대한 24개의 피처추가 (대부분 높은 중요도를 보임) 
