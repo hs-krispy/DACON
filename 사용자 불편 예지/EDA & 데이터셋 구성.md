@@ -898,9 +898,13 @@ plt.show()
 
 불만을 나타낸 그룹
 
-<img src="https://user-images.githubusercontent.com/58063806/104927808-3797a500-59e5-11eb-975b-3ae1393baf02.png" width=60% />
+<img src="https://user-images.githubusercontent.com/58063806/104936093-69156e00-59ef-11eb-8c0f-f9776a41d042.png" width=60% />
 
 불만을 나타내지 않은 그룹
+
+<img src="https://user-images.githubusercontent.com/58063806/104936183-834f4c00-59ef-11eb-9def-9853854167be.png" width=60% />
+
+위의 5개 errcode에서 불만을 나타낸 그룹과 그렇지 않은 그룹의 비율차이가 가장 큼
 
 ### feature_importance
 
