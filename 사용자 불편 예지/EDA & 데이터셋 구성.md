@@ -804,7 +804,103 @@ validation score - 0.8141719000000001
 submission score - 0.809710857	
 ```
 
+**불만을 제기한 유저들과 그렇지 않은 유저들의 errcode 빈도 (상위 15개)**
 
+```python
+train_err = pd.read_csv(PATH + 'train_err_data.csv')
+train_err.dropna(inplace=True)
+unique_err = train_err['errcode'].unique().tolist()
+train_prob = pd.read_csv(PATH + 'train_problem_data.csv')
+prob_user = train_prob['user_id'].unique().tolist()
+nonprob_user = train_err['user_id'].unique().tolist()
+
+check_errcode = {}
+for err in unique_err:
+    check_errcode[err] = 0
+
+for user in prob_user:
+    user_errcode = train_err[train_err['user_id'] == user]['errcode'].unique().tolist()
+    for err in user_errcode:
+        check_errcode[err] += 1
+check_errcode = sorted(check_errcode.items(), key=lambda item: item[1], reverse=True)
+print(check_errcode[:15])
+
+show_errcode_distribution(prob_user, "problem_user")
+show_errcode_distribution(nonprob_user, "nonproblem_user")
+```
+
+```python 
+# 불만을 나타낸 유저들의 errcode 발생 빈도 (상위 15개)
+[(5, 4991), (3, 4983), (600, 4208), (771, 3961), (418, 3432), (3858, 3262), (4344, 3231), (4350, 2928), (4341, 2663), (4295, 2596), (4263, 2470), (367, 1918), (4315, 1868), (4343, 1344), (1804, 1081)]
+
+# 불만을 나타내지 않은 유저들의 errcode 발생 빈도 (상위 15개)
+[(5, 9939), (3, 9793), (600, 7122), (771, 6294), (3858, 5173), (4344, 4759), (418, 4739), (4350, 4457), (4341, 3651), (4295, 3546), (4263, 3390), (4315, 2217), (4311, 2155), (367, 2077), (4343, 1416)]
+```
+
+두 그룹에서 상위의 errcode 대부분이 유사한 발생빈도를 보임
+
+**두 그룹간의 차이가 가장 큰 errcode**
+
+```python
+def show_errcode_distribution(user_id):
+    check_errcode = np.zeros(4353)
+    for user in user_id:
+        user_errcode = train_err[train_err['user_id'] == user]['errcode'].unique().tolist()
+        for err in user_errcode:
+            check_errcode[err] += 1
+
+    return check_errcode
+
+
+prob_err = show_errcode_distribution(prob_user)
+nonprob_err = show_errcode_distribution(nonprob_user)
+sub_err = {}
+for i, val in enumerate(prob_err):
+    sub_err[i] = abs(val - nonprob_err[i])
+sorted_sub = sorted(sub_err.items(), key=lambda item: item[1], reverse=True)
+val = []
+label = []
+for i in range(5):
+    label.append(sorted_sub[i][0])
+    val.append(sorted_sub[i][1])
+plt.bar(list(range(5)), val)
+plt.xticks(list(range(5)), label)
+plt.xlabel("top5_sub_err")
+plt.ylabel("interval")
+plt.show()
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/104926340-5dbc4580-59e3-11eb-9706-4531d797cb44.png" width=60% />
+
+**두 그룹간의 비율차이가 가장 큰 errcode**
+
+```python
+prob_err = show_errcode_distribution(prob_user)
+nonprob_err = show_errcode_distribution(nonprob_user)
+sub_err = {}
+for i, val in enumerate(prob_err):
+    sub_err[i] = abs(val / 5000 - nonprob_err[i] / 10000)
+sorted_sub = sorted(sub_err.items(), key=lambda item: item[1], reverse=True)
+prob_val = []
+nonprob_val = []
+label = []
+for i in range(5):
+    label.append(sorted_sub[i][0])
+    prob_val.append(prob_err[sorted_sub[i][0]])
+    nonprob_val.append(prob_err[sorted_sub[i][0]])
+plt.bar(list(range(5)), prob_val)
+plt.bar(list(range(5)), nonprob_val)
+plt.xticks(list(range(5)), label)
+plt.xlabel("top5_sub_err")
+plt.ylabel("interval")
+plt.show()
+```
+
+불만을 나타낸 그룹
+
+<img src="https://user-images.githubusercontent.com/58063806/104927808-3797a500-59e5-11eb-975b-3ae1393baf02.png" width=60% />
+
+불만을 나타내지 않은 그룹
 
 ### feature_importance
 
