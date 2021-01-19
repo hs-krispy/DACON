@@ -839,7 +839,7 @@ show_errcode_distribution(nonprob_user, "nonproblem_user")
 
 두 그룹에서 상위의 errcode 대부분이 유사한 발생빈도를 보임
 
-**두 그룹간의 차이가 가장 큰 errcode**
+**두 그룹간의 비율차이가 가장 큰 errcode**
 
 ```python
 def show_errcode_distribution(user_id):
@@ -858,53 +858,51 @@ sub_err = {}
 for i, val in enumerate(prob_err):
     sub_err[i] = abs(val - nonprob_err[i])
 sorted_sub = sorted(sub_err.items(), key=lambda item: item[1], reverse=True)
-val = []
-label = []
-for i in range(5):
-    label.append(sorted_sub[i][0])
-    val.append(sorted_sub[i][1])
-plt.bar(list(range(5)), val)
-plt.xticks(list(range(5)), label)
-plt.xlabel("top5_sub_err")
-plt.ylabel("interval")
-plt.show()
-```
 
-<img src="https://user-images.githubusercontent.com/58063806/104926340-5dbc4580-59e3-11eb-9706-4531d797cb44.png" width=60% />
-
-**두 그룹간의 비율차이가 가장 큰 errcode**
-
-```python
-prob_err = show_errcode_distribution(prob_user)
-nonprob_err = show_errcode_distribution(nonprob_user)
-sub_err = {}
-for i, val in enumerate(prob_err):
-    sub_err[i] = abs(val / 5000 - nonprob_err[i] / 10000)
-sorted_sub = sorted(sub_err.items(), key=lambda item: item[1], reverse=True)
 prob_val = []
 nonprob_val = []
 label = []
 for i in range(5):
     label.append(sorted_sub[i][0])
-    prob_val.append(prob_err[sorted_sub[i][0]])
-    nonprob_val.append(prob_err[sorted_sub[i][0]])
-plt.bar(list(range(5)), prob_val)
-plt.bar(list(range(5)), nonprob_val)
-plt.xticks(list(range(5)), label)
-plt.xlabel("top5_sub_err")
-plt.ylabel("interval")
+    prob_val.append(prob_err[sorted_sub[i][0]] / 5000)
+    nonprob_val.append(nonprob_err[sorted_sub[i][0]] / 10000)
+x = np.arange(5)
+plt.rc('font', family='Malgun Gothic')
+plt.bar(x, prob_val, width=0.3, color="b", label="불만을 제기한 유저")
+plt.bar(x + 0.3, nonprob_val, width=0.3, color="r", label="불만을 제기하지 않은 유저")
+plt.xticks(x, label)
+plt.xlabel("두 그룹에서 가장 많은 비율로 차이나는 errcode")
+plt.ylabel("%")
+plt.legend()
 plt.show()
 ```
 
-불만을 나타낸 그룹
-
-<img src="https://user-images.githubusercontent.com/58063806/104936093-69156e00-59ef-11eb-8c0f-f9776a41d042.png" width=60% />
-
-불만을 나타내지 않은 그룹
-
-<img src="https://user-images.githubusercontent.com/58063806/104936183-834f4c00-59ef-11eb-9def-9853854167be.png" width=60% />
+<img src="https://user-images.githubusercontent.com/58063806/104999624-80487000-5a70-11eb-8bd7-b4f714f97f1a.png" width=60% />
 
 위의 5개 errcode에서 불만을 나타낸 그룹과 그렇지 않은 그룹의 비율차이가 가장 큼
+
+해당 에러코드의 발생빈도가 불만여부에 영향을 미친다고 판단
+
+```python
+important_errcode = [418, 367, 4344, 4341, 4295]
+
+
+def important_errcode_count(df, user_number, user_id_min, which):
+    dataset = np.zeros((user_number, 5))
+    for idx, ec in enumerate(important_errcode):
+        sub_dataset = df[df['errcode'] == ec].groupby('user_id')['errcode'].count().reset_index().values
+        for sd in sub_dataset:
+            dataset[sd[0] - user_id_min][idx] = sd[1]
+
+    dataset = pd.DataFrame(dataset, columns=important_errcode)
+    dataset.to_csv("{}_important_errcode.csv".format(which), index=False)
+
+
+important_errcode_count(train_err, train_user_number, train_user_id_min, "train")
+important_errcode_count(test_err, test_user_number, test_user_id_min, "test")
+```
+
+
 
 ### feature_importance
 
