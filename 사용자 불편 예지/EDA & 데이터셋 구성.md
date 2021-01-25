@@ -54,7 +54,6 @@ print(train_quality.isnull().sum())
 여러 피처에서 상당히 많은 양의 결측값이 관측
 
 ```python
-train_quality['fwver'].fillna("N", inplace=True)
 train_quality['quality_0'].fillna("N", inplace=True)
 train_quality['quality_2'].fillna("N", inplace=True)
 train_quality['quality_5'].fillna("N", inplace=True)
@@ -93,7 +92,6 @@ print(test_quality.isnull().sum())
 <img src="https://user-images.githubusercontent.com/58063806/104280404-33ecb580-54ef-11eb-91e8-d8965ffc2ada.png" width=20% />
 
 ```python
-test_quality['fwver'].fillna("N", inplace=True)
 test_quality['quality_0'].fillna("N", inplace=True)
 test_quality['quality_1'].fillna("N", inplace=True)
 test_quality['quality_2'].fillna("N", inplace=True)
@@ -101,6 +99,35 @@ test_quality['quality_5'].fillna("N", inplace=True)
 ```
 
 train_quality와 마찬가지로 결측값을 모두 N으로 채움기본적인 데이터셋 생성
+
+```python
+
+def fill_null(df_qual, df_err, which):
+    null_id = df_qual[df_qual['fwver'].isnull() == True]['user_id'].unique()
+    for id in null_id:
+        if id == 43262:
+            continue
+        print(df_err[df_err['user_id'] == id]['fwver'].value_counts())
+        val = df_err[df_err['user_id'] == id]['fwver'].unique()
+        if len(val) > 1:
+            start_time = df_qual[df_qual['user_id'] == id]['time'].unique()[0]
+            err_time = df_err[df_err['user_id'] == id][['time', 'fwver']].values
+            for et in err_time:
+                if et[0] > start_time:
+                    df_qual.loc[df_qual['user_id'] == id, 'fwver'] = et[1]
+        df_qual.loc[df_qual['user_id'] == id, 'fwver'] = val[0]
+    if which == "test":
+        index = df_qual[df_qual['user_id'] == 43262].index
+        df_qual.drop(index=index, inplace=True)
+    print(df_qual.isnull().sum())
+    df_qual.to_csv("filled_{}_quality.csv".format(which), index=False)
+
+
+fill_null(train_quality, train_err, "train")
+fill_null(test_quality, test_err, "test")
+```
+
+err data를 참고해서 user_id를 통해 quality data의 fwver 결측값을 채워넣음 
 
 ```python
 train_user_id_max = 24999
@@ -902,7 +929,96 @@ important_errcode_count(train_err, train_user_number, train_user_id_min, "train"
 important_errcode_count(test_err, test_user_number, test_user_id_min, "test")
 ```
 
+불만을 제기한 유저와 그렇지 않은 경우, quality data가 존재하는 유저와 그렇지 않은 경우의 errtype 분포비교
 
+```python
+prob_user = train_prob['user_id'].unique().tolist()
+
+def plot_errtype_dist(user_id):
+    prob_dist = np.zeros(41)
+    nonprob_dist = np.zeros(41)
+    id_errtype = train_err.groupby('user_id')['errtype'].value_counts().index.values
+    val = train_err.groupby('user_id')['errtype'].value_counts().values
+    for ie, count in zip(id_errtype, val):
+        if ie[0] in user_id:
+            if ie[1] > 29:
+                prob_dist[ie[1] - 2] += count
+            else:
+                prob_dist[ie[1] - 1] += count
+        else:
+            if ie[1] > 29:
+                nonprob_dist[ie[1] - 2] += count
+            else:
+                nonprob_dist[ie[1] - 1] += count
+	
+    # 유저들의 수에 따라 나눠줌 (평균치)
+    prob_dist /= 5000
+    nonprob_dist /= 10000
+    plt.bar(range(41), prob_dist.tolist())
+    plt.show()
+    plt.bar(range(41), nonprob_dist.tolist())
+    plt.show()
+    
+plot_errtype_dist(prob_user)
+```
+
+**불만을 제기한 유저들의 errtype 분포**
+
+<img src="https://user-images.githubusercontent.com/58063806/105651240-a7cc8c00-5ef9-11eb-8060-235d98a53541.png" width=60% />
+
+**불만을 제기하지 않은 유저들의 errtype 분포**
+
+<img src="C:\Users\wykim\AppData\Roaming\Typora\typora-user-images\image-20210125104035501.png" width=60% />
+
+errtype 21, 22번에서 불만을 제기한 유저들의 빈도가 2배 이상 많은 것을 확인
+
+
+
+```python
+def plot_model_nm_dist(user_id):
+    prob_dist = np.zeros(9)
+    nonprob_dist = np.zeros(9)
+    id_errtype = train_err.groupby('user_id')['model_nm'].value_counts().index.values
+    val = train_err.groupby('user_id')['model_nm'].value_counts().values
+    for ie, count in zip(id_errtype, val):
+        if ie[0] in user_id:
+            prob_dist[ie[1]] += count
+        else:
+            nonprob_dist[ie[1]] += count
+
+    prob_dist /= 5000
+    nonprob_dist /= 10000
+    plt.bar(range(9), prob_dist.tolist())
+    plt.show()
+    plt.bar(range(9), nonprob_dist.tolist())
+    plt.show()
+
+plot_model_nm_dist(prob_user)
+```
+
+**불만을 제기한 유저들의 model_nm분포**
+
+<img src="https://user-images.githubusercontent.com/58063806/105651714-f3cc0080-5efa-11eb-8fb7-306245aaa984.png" width=60% />
+
+**불만을 제기하지 않은 유저들의 model_nm분포**
+
+<img src="C:\Users\wykim\AppData\Roaming\Typora\typora-user-images\image-20210125105006641.png" width=60% />
+
+model_nm_1에 대해서 불만의 제기한 유저들의 빈도가 2배정도 많음을 확인
+
+
+
+<img src="https://user-images.githubusercontent.com/58063806/105681699-ce5be880-5f34-11eb-8c53-4ae5fe295838.png" width=60% />
+
+**train_err에서 quality에 없는 user_id에 대한 errtype 분포**
+
+<img src="https://user-images.githubusercontent.com/58063806/105681823-fcd9c380-5f34-11eb-99d9-d7ca6b44fd52.png" width=60% />
+
+**train_err에서 quality에 있는 user_id에 대한 errtype 분포**
+
+
+
+전체적으로 비슷한 분포지만 errtype 3에서 다른 분포를 보임
 
 ### feature_importance
 
