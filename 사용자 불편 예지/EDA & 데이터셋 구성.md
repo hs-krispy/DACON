@@ -54,12 +54,12 @@ print(train_quality.isnull().sum())
 여러 피처에서 상당히 많은 양의 결측값이 관측
 
 ```python
-train_quality['quality_0'].fillna("N", inplace=True)
-train_quality['quality_2'].fillna("N", inplace=True)
-train_quality['quality_5'].fillna("N", inplace=True)
+train_quality['quality_0'].fillna(0, inplace=True)
+train_quality['quality_2'].fillna(0, inplace=True)
+train_quality['quality_5'].fillna(0, inplace=True)
 ```
 
-각 피처들이 범주형 변수라고 판단하고 결측값을 N으로 채움
+가장 많이 나타나는 0으로 대체
 
 **train_problem_data**
 
@@ -92,16 +92,15 @@ print(test_quality.isnull().sum())
 <img src="https://user-images.githubusercontent.com/58063806/104280404-33ecb580-54ef-11eb-91e8-d8965ffc2ada.png" width=20% />
 
 ```python
-test_quality['quality_0'].fillna("N", inplace=True)
-test_quality['quality_1'].fillna("N", inplace=True)
-test_quality['quality_2'].fillna("N", inplace=True)
-test_quality['quality_5'].fillna("N", inplace=True)
+test_quality['quality_0'].fillna(0, inplace=True)
+test_quality['quality_1'].fillna(0, inplace=True)
+test_quality['quality_2'].fillna(0, inplace=True)
+test_quality['quality_5'].fillna(0, inplace=True)
 ```
 
-train_quality와 마찬가지로 결측값을 모두 N으로 채움기본적인 데이터셋 생성
+train_quality와 마찬가지로 결측값을 모두 0으로 채움
 
 ```python
-
 def fill_null(df_qual, df_err, which):
     null_id = df_qual[df_qual['fwver'].isnull() == True]['user_id'].unique()
     for id in null_id:
@@ -681,6 +680,15 @@ print(train_err.groupby('user_id')['model_nm'].nunique())
 
 데이터를 더 살펴본 결과 대부분의 유저에서 하나의 모델만 사용하는 것으로 나타남
 
+
+
+평균적으로 하루에 발생한 에러 데이터를 추가
+
+ ```python
+# validation score - 0.81472955
+# submission score - 0.8169682162	
+ ```
+
 error_time_interval의 수치들을 0 ~ 1사이의 값으로 scaling해서 다시 데이터셋 생성
 
 ```python
@@ -970,7 +978,7 @@ plot_errtype_dist(prob_user)
 
 <img src="C:\Users\wykim\AppData\Roaming\Typora\typora-user-images\image-20210125104035501.png" width=60% />
 
-errtype 21, 22번에서 불만을 제기한 유저들의 빈도가 2배 이상 많은 것을 확인
+errtype 22, 23번에서 불만을 제기한 유저들의 빈도가 2배 이상 많은 것을 확인
 
 
 
@@ -1016,9 +1024,44 @@ model_nm_1에 대해서 불만의 제기한 유저들의 빈도가 2배정도 �
 
 **train_err에서 quality에 있는 user_id에 대한 errtype 분포**
 
+전체적으로 비슷한 분포지만 errtype 4에서 다른 분포를 보임
 
 
-전체적으로 비슷한 분포지만 errtype 3에서 다른 분포를 보임
+
+**quality log가 발생하기 직전 발생한 errtype의 분포**
+
+<img src="https://user-images.githubusercontent.com/58063806/105792647-188fa900-5fcb-11eb-8520-2e65987e936d.png" width=60% />
+
+errtype 4, 15, 31이 많이 발생
+
+
+
+**각 user별 quality log 발생 횟수**
+
+```python
+def cal_quality_bins(quality_log, user_number, user_id_min):
+    q_user = quality_log.groupby('user_id')['time'].count().index
+    q = np.array(quality_log.groupby('user_id')['time'].count().values) / 12
+    dataset = np.zeros(user_number)
+    for user, bin in zip(q_user, q):
+        dataset[user - user_id_min] = bin
+    dataset = pd.DataFrame(dataset, columns=['quality_bin'])
+    dataset = pd.concat((train, dataset), axis=1, ignore_index=True)
+
+    return dataset
+
+# validation score - 0.8159702999999998
+# submission score - 0.8124374276	
+
+# error_time_interval 제거
+# validation score - 0.81577165
+# submission score - 0.815548357	
+
+# error_time_interval, errcode, errors_per_day 제거
+# validation score - 0.8168468500000001
+```
+
+
 
 ### feature_importance
 
