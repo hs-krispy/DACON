@@ -1059,6 +1059,109 @@ def cal_quality_bins(quality_log, user_number, user_id_min):
 
 # error_time_interval, errcode, errors_per_day 제거
 # validation score - 0.8168468500000001
+# submission score - 0.8152312361	
+```
+
+**err, quality data 간의 fwver 분포비교**
+
+```python
+err = train_err['fwver'].value_counts().reset_index()
+fig, axes = plt.subplots(2, 1, figsize=(10, 10))
+axes[0].barh(err['index'], err['fwver'])
+axes[0].set_title("train_err_fwver")
+axes[0].set_yticklabels(err['index'])
+train_quality = pd.read_csv('filled_train_quality.csv')
+qual = train_quality['fwver'].value_counts().reset_index()
+axes[1].barh(qual['index'], qual['fwver'])
+axes[1].set_title("train_quality_fwver")
+axes[1].set_yticklabels(qual['index'])
+plt.show()
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/105932316-12afcb80-6090-11eb-8a28-783f4ff33ce0.png" width=90% />
+
+비교를 해보면 상위 6개에 해당하는 fwver는 순서는 조금씩 달라도 err와 quality에서 일치
+
+**fwver - 8.5.3, 10의 경우에는 err에 비해 quality에서 매우 높게 나타나고있음**  
+
+해당 firmware version에서 시스템 작동 상태 중 관련보다 문제가 많이 발생한다는 것을 의미 
+
+
+
+**각 user별 fwver 체크**
+
+```python
+def count_fwver(df, user_number, user_id_min, which):
+    dataset = np.zeros((user_number, 47))
+    user_fwver = df.groupby('user_id')['fwver'].value_counts().index
+    for id_ver in user_fwver:
+        dataset[id_ver[0] - user_id_min][id_ver[1]] = 1  # true
+
+    dataset = pd.DataFrame(dataset)
+    dataset.to_csv('{}_count_fwver.csv'.format(which), index=False)
+```
+
+
+
+유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling)
+
+```python
+# shape - (15000, 53)
+# validation score - 0.8168471
+```
+
+유저별 errtype 발생빈도와 + 유저별 사용 fwver + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling)
+
+```python
+# shape - (15000, 91)
+# validation score - 0.8162563
+```
+
+유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver 
+
+``` python
+# shape - (15000, 100)
+# validation score - 0.81776885
+# submission score - 0.8123721779
+
+# feature_importance가 0인 피처들을 제거
+# shape - (15000, 61)
+# validation score - 0.8175133499999999
+```
+
+유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver + 시간대 별 err 발생 횟수
+
+```python
+# shape - (15000, 124)
+# validation score - 0.8138381000000001
+```
+
+
+
+**각 유저별 quality log의 평균값**
+
+```python
+def mean_quality(df, user_number, user_id_min, which):
+    dataset = np.zeros((user_number, 13))
+    for i in range(13):
+        user = df.groupby('user_id')['quality_{}'.format(i)].mean().index
+        val = df.groupby('user_id')['quality_{}'.format(i)].mean().values
+        for id, mv in zip(user, val):
+            dataset[id - user_id_min][i] = mv
+
+    dataset = pd.DataFrame(dataset, columns=df.columns[3:])
+    dataset.to_csv("{}_mean_quality.csv".format(which), index=False)
+```
+
+train, test 모두 quality_3, quality_4는 모든 값이 0으로 구성
+
+ 
+
+유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver  + 유저별 quality 평균값
+
+```python
+# shape - (15000, 113)
+# validation score - 0.8167156500000001
 ```
 
 
@@ -1119,3 +1222,9 @@ error_time_interval 추가
 <img src="https://user-images.githubusercontent.com/58063806/104753134-ebf1bb00-579a-11eb-8246-31d80480940e.png" width=100% />
 
 시간대에 대한 24개의 피처추가 (대부분 높은 중요도를 보임) 
+
+<img src="https://user-images.githubusercontent.com/58063806/105999457-10318e00-60f1-11eb-8e46-9af3dc217a06.png" width=100% />
+
+유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver 
+
+상당수의 피처 중요도가 0으로 나타남
