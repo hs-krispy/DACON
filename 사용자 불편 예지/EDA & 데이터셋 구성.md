@@ -1166,6 +1166,40 @@ train, test 모두 quality_3, quality_4는 모든 값이 0으로 구성
 
 
 
+**각 fwver별로 quality_log의 값이 0이 아닌 분포**
+
+```python
+def fwver_quality_log(df, which):
+    fwver = df['fwver'].unique().tolist()
+    Dict = dict(zip(fwver, range(len(fwver))))
+    scaler = MinMaxScaler()
+    for i in range(13):
+        index = df[df['quality_{}'.format(i)] != 0].groupby('fwver')['quality_{}'.format(i)].count().index.tolist()
+        value = df[df['quality_{}'.format(i)] != 0].groupby('fwver')['quality_{}'.format(i)].count().values
+        if len(value) == 0:
+            for idx in fwver:
+                Dict[idx] = 0
+        else:
+            for idx, val in zip(index, value):
+                Dict[idx] = val
+            for idx in set(fwver) - set(index):
+                Dict[idx] = 0
+        values = np.array(list(Dict.values()))
+        values = values.reshape(-1, 1)
+        values = scaler.fit_transform(values)
+        values = np.squeeze(values, axis=1)
+        print(values)
+        plt.figure(figsize=(10, 10))
+        plt.bar(Dict.keys(), values)
+        plt.title('quality_{}_fwver_bins'.format(i))
+        plt.xticks(list(Dict.keys()), rotation=90)
+        plt.savefig("plot/{}_plot_{}.png".format(which, i))
+```
+
+
+
+
+
 ### feature_importance
 
 ```python
