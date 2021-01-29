@@ -17,54 +17,7 @@ print(train_err.isnull().sum())
 # fwver       0
 # errtype     0
 # errcode     1
-
-# errcode에 하나의 결측값 확인
-print(train_err.value_counts('errcode'))
 ```
-
-<img src="https://user-images.githubusercontent.com/58063806/104117060-6b2d5c00-5361-11eb-85de-ac6c980dd509.png" width=25% />
-
-상당히 많은 양의 errcode가 있는 것을 볼 수 있음
-
-그 결과 하나의 errcode로 결측값을 대체하기 보다는 삭제하는 방향을 선택
-
-```python
-train_err.dropna(inplace=True)
-print(train_err.isnull().sum())
-# user_id     0
-# time        0
-# model_nm    0
-# fwver       0
-# errtype     0
-# errcode     0
-```
-
-**train_quality_data**
-
-- 시스템 퀄리티 로그
-- 12행 단위로 시간이 변함
-
-```python
-train_quality = pd.read_csv(PATH+'train_quality_data.csv')
-print(train_quality.isnull().sum())
-```
-
-<img src="https://user-images.githubusercontent.com/58063806/104149828-151cef00-541b-11eb-9dc7-949d51ef1c41.png" width=20% />
-
-여러 피처에서 상당히 많은 양의 결측값이 관측
-
-```python
-train_quality['quality_0'].fillna(0, inplace=True)
-train_quality['quality_2'].fillna(0, inplace=True)
-train_quality['quality_5'].fillna(0, inplace=True)
-```
-
-가장 많이 나타나는 0으로 대체
-
-**train_problem_data**
-
-- 사용자의 불만이 접수된 시간
-- 불만이 접수된 시간 이후에도 train_err_data를 보면 에러 로그는 계속 발생했음을 알 수 있음
 
 **test_err_data**
 
@@ -78,10 +31,111 @@ print(test_err.isnull().sum())
 # fwver       0
 # errtype     0
 # errcode	  4
-test_err.dropna(inplace=True)
 ```
 
-train_err_data와 마찬가지로 결측값이 있는 행을 삭제
+결측값이 있는 행을 확인
+
+```python
+print(train_err[train_err['errcode'].isnull() == True])
+print(test_err[test_err['errcode'].isnull() == True])
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/106231774-cd2d0300-6235-11eb-944b-d032f14a302e.png" width=70% />
+
+```python
+print(train_err[(train_err['user_id'] == 13639) & (train_err['errtype'] == 5)])
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/106232272-f26e4100-6236-11eb-8ffc-fa9f08826c34.png" width=70% />
+
+```python
+print(test_err[((test_err['user_id'] == 30820) | (test_err['user_id'] == 33681) | (test_err['user_id'] == 38991) | (test_err['user_id'] == 39894)) & (test_err['errtype'] == 5)])
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/106232542-9c4dcd80-6237-11eb-8a9f-f822729da7f6.png" width=70%/>
+
+<img src="https://user-images.githubusercontent.com/58063806/106232793-3ada2e80-6238-11eb-8833-dc7ea3229a0b.png" width=70% />
+
+<img src="https://user-images.githubusercontent.com/58063806/106232855-60ffce80-6238-11eb-85df-c05e2454c49f.png" width=70% />
+
+<img src="https://user-images.githubusercontent.com/58063806/106232894-7ecd3380-6238-11eb-9210-7b94502adf95.png" width=70% />
+
+결측값이 있는 행과 errcode를 제외하고 모두 동일한 행을 발견 
+
+결측값을 삭제하고 같은 errcode가 있는 행을 확인
+
+```python
+train_err.dropna(inplace=True)
+test_err.dropna(inplace=True)
+print(train_err[train_err['errcode'] == "40013"])
+print(test_err[(test_err['errcode'] == "40053") | (test_err['errcode'] == "-1010")])
+```
+
+동일한 errcode를 가진 행은 없었음
+
+
+
+똑같은 값이 중복되서 들어온 것으로 보아 연결이 끊어지거나 재부팅이 발생하는 경우로 판단 
+
+해당 유저의 errcode 발생 현황
+
+```python
+print(train_err[(train_err['user_id'] == 13639) & (train_err['errtype'] == 5)].groupby('errcode').count())
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/106236364-0d917e80-6240-11eb-968a-f36b3e79db67.png" width=50%/>
+
+```python
+print(test_err[((test_err['user_id'] == 30820) | (test_err['user_id'] == 33681)
+                | (test_err['user_id'] == 38991) | (test_err['user_id'] == 39894))
+               & (test_err['errtype'] == 5)].groupby(['user_id', 'errcode']).count())
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/106237443-34e94b00-6242-11eb-80ac-7579c810196c.png" width=50%/>
+
+공통적으로 B-A8002 errcode가 많이 발생한 것을 볼 수 있음
+
+
+
+train_err에서 B-A8002 errcode가 발생한 유저의 수
+
+```python
+print(len(train_err[train_err['errcode'] == 'B-A8002']['user_id'].unique()))
+# 5860
+```
+
+불만을 제기한 유저의 수와 해당 유저 중 B-A8002 errcode가 발생한 유저의 수 
+
+```python
+prob_id = train_prob['user_id'].unique()
+selected_user = train_err[train_err['errcode'] == 'B-A8002']['user_id'].unique()
+count = 0
+print(len(prob_id))
+# 5000
+for id in selected_user:
+    if id in prob_id:
+        count += 1
+print(count)
+# 2470
+```
+
+- **B-A8002 errcode가 발생한 유저 중 약 40%**에 해당하는 인원이 **불만을 제기** 
+
+- **불만을 제기한 유저 중 거의 절반**에 해당하는 인원이 **B-A8002 errcode가 발생**한 것을 볼 수 있음
+
+**train_quality_data**
+
+- 시스템 퀄리티 로그
+- 12행 단위로 시간이 변함(2시간 간격)
+
+```python
+train_quality = pd.read_csv(PATH+'train_quality_data.csv')
+print(train_quality.isnull().sum())
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/104149828-151cef00-541b-11eb-9dc7-949d51ef1c41.png" width=20% />
+
+여러 피처에서 상당히 많은 양의 결측값이 관측
 
 **test_quality_data**
 
@@ -90,15 +144,6 @@ print(test_quality.isnull().sum())
 ```
 
 <img src="https://user-images.githubusercontent.com/58063806/104280404-33ecb580-54ef-11eb-91e8-d8965ffc2ada.png" width=20% />
-
-```python
-test_quality['quality_0'].fillna(0, inplace=True)
-test_quality['quality_1'].fillna(0, inplace=True)
-test_quality['quality_2'].fillna(0, inplace=True)
-test_quality['quality_5'].fillna(0, inplace=True)
-```
-
-train_quality와 마찬가지로 결측값을 모두 0으로 채움
 
 ```python
 def fill_null(df_qual, df_err, which):
@@ -127,6 +172,88 @@ fill_null(test_quality, test_err, "test")
 ```
 
 err data를 참고해서 user_id를 통해 quality data의 fwver 결측값을 채워넣음 
+
+
+
+결측값이 있는 quality log 별로 fwver을 체크
+
+```python
+print(train_quality[(train_quality['quality_0'].isnull() == True)]['fwver'].unique())
+print(train_quality[(train_quality['quality_2'].isnull() == True)]['fwver'].unique())
+print(train_quality[(train_quality['quality_5'].isnull() == True)]['fwver'].unique())
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/106240708-14bc8a80-6248-11eb-8882-a222f4818edc.png" width=70% />
+
+가장 많은 결측값이 있는 quality_0은 03.11.1149, 03.11.1167을 제외한 나머지 fwver은 quality_2의 fwver과 일치
+
+```python
+# fwver이 10이고 quality_0 or quality_2에서 결측값이 관찰된 행
+print(train_quality[(train_quality['fwver'] == '10') &
+                    (train_quality['quality_0'].isnull() == True | train_quality['quality_2'].isnull() == True)])
+
+# fwver이 10이고 quality_0 and quality_2에서 결측값이 관찰된 행
+print(train_quality[(train_quality['fwver'] == '10') &
+                    ((train_quality['quality_0'].isnull() == True) & (train_quality['quality_2'].isnull() == True))])
+```
+
+위의 결과 두개가 일치하는 것을 발견 (해당 fwver에서는 두 quality log가 유의미한 관계를 가짐)
+
+나머지 fwver에서도 일치하는 것을 확인
+
+```python
+print(train_quality[(train_quality['fwver'] == '04.22.1750') &
+                    ((train_quality['quality_0'].isnull() == True) | (train_quality['quality_2'].isnull() == True) | (train_quality['quality_5'].isnull() == True))])
+
+print(train_quality[(train_quality['fwver'] == '04.22.1750') &
+                    ((train_quality['quality_0'].isnull() == True) & (train_quality['quality_2'].isnull() == True) & (train_quality['quality_5'].isnull() == True))])
+```
+
+세 개의 quality log에 대해서 확인
+
+세 quality log 동시에 결측값을 갖는 경우는 없음을 확인 
+
+
+
+전체 dataset에서 quality_0과 quality_2가 같은 경우 확인
+
+```python
+print(train_quality[(train_quality['quality_0'] == train_quality['quality_2'])])
+```
+
+약 83만개의 행 중에서 68만개가 넘는 경우에 같음을 확인
+
+**quality_0, 2가 동시에 결측값을 갖는 경우는 같은 값을 갖는다고 가정**
+
+
+
+```python
+print(train_quality[(train_quality['quality_0'] != train_quality['quality_2']) & (train_quality['quality_0'].isnull()==False) & (train_quality['quality_2'].isnull()==False)])
+```
+
+
+
+```python
+print(test_quality[(test_quality['quality_0'].isnull() == True)]['fwver'].unique())
+print(test_quality[(test_quality['quality_1'].isnull() == True)]['fwver'].unique())
+print(test_quality[(test_quality['quality_2'].isnull() == True)]['fwver'].unique())
+print(test_quality[(test_quality['quality_5'].isnull() == True)]['fwver'].unique())
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/106240933-7e3c9900-6248-11eb-8fb5-5cfa3fe9fb83.png" width=70%/>
+
+nan은 user_id가 43262인 유저에 대한 정보 
+
+fwver 10이나 8.5.3과 비슷한 양상을 보임
+
+
+
+**train_problem_data**
+
+- 사용자의 불만이 접수된 시간
+- 불만이 접수된 시간 이후에도 train_err_data를 보면 에러 로그는 계속 발생했음을 알 수 있음
+
+
 
 ```python
 train_user_id_max = 24999
@@ -1198,7 +1325,35 @@ def fwver_quality_log(df, which):
 
 
 
+```python
+err = set().union(train_err['fwver'].unique(), test_err['fwver'].unique())
+qual = set().union(train_quality['fwver'].unique(), test_quality['fwver'].unique())
+print(len(err - qual), err - qual)
+print(len(qual - err), qual - err)
 
+11 {'04.22.1170', '04.33.1171', '04.33.1095', '05.15.2090', '04.82.1730', '04.16.2641', '10.22.1780', '04.73.2569', '04.16.3569', '04.73.2577', '05.15.2092'}
+1 {'09.17.1431'}
+```
+
+fwver 09.17.1431는 err data에는 없고 quality data에만 있는 것을 발견
+
+
+
+quality dataset에서 fwver 09.17.1431 사용하는 유저들의 불만 현황
+
+```python
+selected_user = train_quality[train_quality['fwver'] == "09.17.1431"]['user_id'].unique()
+prob_id = train_prob['user_id'].unique()
+for id in selected_user:
+    if id in prob_id:
+        print(id, ": problem")
+    else:
+        print(id, ": nonproblem")
+```
+
+이 결과 **25명의 유저 중 24명의 유저가 실제로 불만을 제기함**
+
+(fwver 09.17.1431을 사용하는 유저들을 대부분 불만을 제기한다고 유추 가능)
 
 ### feature_importance
 
