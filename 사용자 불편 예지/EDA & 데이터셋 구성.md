@@ -228,7 +228,41 @@ print(train_quality[(train_quality['quality_0'] == train_quality['quality_2'])])
 
 
 ```python
-print(train_quality[(train_quality['quality_0'] != train_quality['quality_2']) & (train_quality['quality_0'].isnull()==False) & (train_quality['quality_2'].isnull()==False)])
+train_quality['quality_5'].fillna(method="pad", inplace=True)
+```
+
+quality_5는 전 row의 값으로 결측값을 대체
+
+```python
+print(train_quality[(train_quality['quality_0'] == train_quality['quality_1']) & (train_quality['quality_1'] == train_quality['quality_2'])][['quality_0', 'quality_1', 'quality_2']].value_counts())
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/106295237-866df600-6293-11eb-9b80-89158ceaac23.png" width=50% />
+
+약 83만개의 행 중 약 77만개의 행에서 quality_0, 1, 2가 동일(대부분 값은 0, -1)
+
+```python
+def fill_quality_na(df, which):
+    q0_fwver = df[(df['quality_0'].isnull() == True)]['fwver'].unique()
+    q2_fwver = df[(df['quality_2'].isnull() == True)]['fwver'].unique()
+    for ver in q0_fwver:
+        index = df.loc[(df['fwver'] == ver)
+                                  & (df['quality_0'].isnull() == True) & (df['quality_2'].notnull() == True)].index
+        if len(index) > 0:
+            df.loc[index, "quality_0"] = df.loc[index, "quality_2"]
+    for ver in q2_fwver:
+        index = df.loc[(df['fwver'] == ver)
+                       & (df['quality_2'].isnull() == True) & (df['quality_0'].notnull() == True)].index
+        if len(index) > 0:
+            df.loc[index, "quality_2"] = df.loc[index, "quality_0"]
+    
+    # 이때는 quality_0과 2가 동일한 row에서 결측값을 가짐
+    # quality_1의 값이 -1인 경우에 quality_0, 2의 결측값을 -1로
+    index = df.loc[(df['quality_0'].isnull() == True) & (df['quality_1'] == -1)].index
+    df.loc[index, "quality_0"] = df.loc[index, "quality_2"] = df.loc[index, "quality_1"]
+    # 나머지는 결측값 0으로 대체
+    df.fillna(0, inplace=True)
+    df.to_csv("filled_{}_quality.csv".format(which), index=False)
 ```
 
 
@@ -242,9 +276,53 @@ print(test_quality[(test_quality['quality_5'].isnull() == True)]['fwver'].unique
 
 <img src="https://user-images.githubusercontent.com/58063806/106240933-7e3c9900-6248-11eb-8fb5-5cfa3fe9fb83.png" width=70%/>
 
+fwver 10이나 8.5.3과 비슷한 양상을 보임
+
 nan은 user_id가 43262인 유저에 대한 정보 
 
-fwver 10이나 8.5.3과 비슷한 양상을 보임
+```python
+print(test_quality[(test_quality['fwver'].isnull() == True)])
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/106298974-f54d4e00-6297-11eb-88d7-be77d305e373.png" width=100% />
+
+결과를 보면 user_id 43262의 모든 행에서 quality_0, 2 둘 다 결측값을 갖는 것을 알 수 있음
+
+```python
+print(test_quality[(test_quality['quality_0'].isnull() == True) & (test_quality['quality_2'].isnull() == True)]['fwver'].unique())
+# ['10' '8.5.3' nan]
+test_quality['fwver'].fillna('8.5.3', inplace=True)
+```
+
+fwver 10과 8.5.3 중 8.5.3의 형태와 조금 더 유사한 것을 확인하고 fwver의 결측값을 8.5.3으로 대체
+
+
+
+```python
+test_quality['quality_5'].fillna(method="pad", inplace=True)
+```
+
+train과 마찬가지로 quality_5는 해당 row의 전 값으로 대체
+
+```python
+print(test_quality[(test_quality['quality_0'] == test_quality['quality_1']) & (test_quality['quality_1'] == test_quality['quality_2'])][['quality_0', 'quality_1', 'quality_2']].value_counts())
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/106346806-0bd9c080-62fd-11eb-86d1-c9ba5f8eec4f.png" width=50% />
+
+약 75만개의 행 중 60만개의 행에서 quality_0, 1, 2가 동일 (값은 대부분 0, -1)
+
+quality_0, 2가 -1인 경우를 제외하고는 0으로 대체
+
+
+
+```python
+print(test_quality[(test_quality['quality_0'] == test_quality['quality_2'])])
+```
+
+약 75만개의 행 중 64만개의 행에서 quality_0과 2가 동일
+
+train_quality와 동일하게 결측값 처리
 
 
 
@@ -1296,31 +1374,45 @@ train, test 모두 quality_3, quality_4는 모든 값이 0으로 구성
 **각 fwver별로 quality_log의 값이 0이 아닌 분포**
 
 ```python
+fwver = list(set().union(train_quality['fwver'].unique(), test_quality['fwver'].unique()))
+scaler = MinMaxScaler()
+global check
+check = False
+
+
 def fwver_quality_log(df, which):
-    fwver = df['fwver'].unique().tolist()
+    global check
+    fig = plt.figure(figsize=(60, 40))
     Dict = dict(zip(fwver, range(len(fwver))))
-    scaler = MinMaxScaler()
     for i in range(13):
-        index = df[df['quality_{}'.format(i)] != 0].groupby('fwver')['quality_{}'.format(i)].count().index.tolist()
-        value = df[df['quality_{}'.format(i)] != 0].groupby('fwver')['quality_{}'.format(i)].count().values
+        index = df[(df['quality_{}'.format(i)] != 0) & (df['quality_{}'.format(i)] != '0')].groupby('fwver')[
+            'quality_{}'.format(i)].count().index.tolist()
+        value = df[(df['quality_{}'.format(i)] != 0) & (df['quality_{}'.format(i)] != '0')].groupby('fwver')[
+            'quality_{}'.format(i)].count().values
+        fw_index = df.groupby('fwver')['quality_{}'.format(i)].count().index
+        fw_count = df.groupby('fwver')['quality_{}'.format(i)].count().values
+        count_dict = dict(zip(fw_index, fw_count))
         if len(value) == 0:
             for idx in fwver:
                 Dict[idx] = 0
         else:
             for idx, val in zip(index, value):
-                Dict[idx] = val
+                Dict[idx] = val / count_dict[idx]
             for idx in set(fwver) - set(index):
                 Dict[idx] = 0
         values = np.array(list(Dict.values()))
         values = values.reshape(-1, 1)
-        values = scaler.fit_transform(values)
+        if not check:
+            values = scaler.fit_transform(values)
+            check = True
+        else:
+            values = scaler.transform(values)
         values = np.squeeze(values, axis=1)
-        print(values)
-        plt.figure(figsize=(10, 10))
-        plt.bar(Dict.keys(), values)
-        plt.title('quality_{}_fwver_bins'.format(i))
-        plt.xticks(list(Dict.keys()), rotation=90)
-        plt.savefig("plot/{}_plot_{}.png".format(which, i))
+        ax = fig.add_subplot(3, 5, i + 1)
+        ax.bar(Dict.keys(), values)
+        ax.set_title('quality_{}_fwver_bins'.format(i))
+        ax.set_xticklabels(list(Dict.keys()), rotation=90)
+    plt.savefig("plot/{}_avg_plot.png".format(which))
 ```
 
 
