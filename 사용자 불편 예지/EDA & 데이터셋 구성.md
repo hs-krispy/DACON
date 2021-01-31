@@ -333,6 +333,141 @@ train_quality와 동일하게 결측값 처리
 
 
 
+불만을 제기한 유저들의 errcode 파악
+
+```python
+all_errcode = list(set().union(train_err['errcode'], test_err['errcode']))
+
+def show_errcode(df):
+    Dict = dict(zip(all_errcode, [0] * len(all_errcode)))
+    print(Dict)
+    prob_user = train_prob['user_id'].unique()
+
+    for user in prob_user:
+        index = df[df['user_id'] == user]['errcode'].value_counts().index
+        count = df[df['user_id'] == user]['errcode'].value_counts().values
+        for idx, val in zip(index, count):
+            Dict[idx] += val
+
+    Dict = sorted(Dict.items(), key=lambda item: item[1], reverse=True)
+    print(Dict[:100])
+```
+
+**train**
+
+<img src="https://user-images.githubusercontent.com/58063806/106349811-51ee4e80-6314-11eb-92b7-4b6ac75fa8a1.png" width=100% />
+
+B-A8002는 물론 connection, 연결과 관련된 errcode들이 많이 발생한 것을 알 수 있음
+
+
+
+불만을 제기한 유저들의 fwver 파악
+
+```python
+all_fwver = list(set().union(train_err['fwver'].unique(), test_err['fwver'].unique()))
+
+def show_fwver(df):
+    Dict = dict(zip(all_fwver, [0] * len(all_fwver)))
+    prob_user = train_prob['user_id'].unique()
+
+    for user in prob_user:
+        index = df[df['user_id'] == user]['fwver'].value_counts().index
+        count = df[df['user_id'] == user]['fwver'].value_counts().values
+
+        for idx, val in zip(index, count):
+            Dict[idx] += val
+
+    Dict = sorted(Dict.items(), key=lambda item: item[1], reverse=True)
+    print(Dict)
+```
+
+**train_err**
+
+<img src="https://user-images.githubusercontent.com/58063806/106350031-1e142880-6316-11eb-9a79-ad529d7e6207.png" width=100% />
+
+**train_quality**
+
+<img src="https://user-images.githubusercontent.com/58063806/106384979-32891b80-6411-11eb-8983-e1d43995bc20.png" width=100% />
+
+
+
+해당 fwver을 사용하는 유저들의 불만 제기확률
+
+```python
+fwver = ['04.16.3553', '04.22.1750', '04.33.1261', '03.11.1167', '04.22.1778', '05.15.2138', '04.33.1185', '04.16.3571']
+for ver in fwver:
+    tq = train_quality[train_quality['fwver'] == ver]['user_id'].unique()
+    # te = train_err[train_err['fwver'] == ver]['user_id'].unique()
+    tp = train_prob['user_id'].unique()
+    count = 0
+    for id in tq:
+        if id in tp:
+            count += 1
+    print(ver, count, count / len(tq))
+
+# train_quality
+# 04.16.3553 667 0.4622314622314622
+# 04.22.1750 868 0.4412811387900356
+# 04.33.1261 851 0.4359631147540984
+# 03.11.1167 111 0.21595330739299612
+# 04.22.1778 513 0.46636363636363637
+# 05.15.2138 487 0.28248259860788866
+# 04.33.1185 476 0.4103448275862069
+# 04.16.3571 43 0.6323529411764706
+
+# train_err
+# 04.16.3553 1314 0.46316531547409234
+# 04.22.1750 1630 0.37635649965365964
+# 04.33.1261 1739 0.39105014616595457
+# 03.11.1167 141 0.20644216691068815
+# 04.22.1778 1586 0.3799712505989459
+# 05.15.2138 720 0.23233301064859632
+# 04.33.1185 1128 0.32828870779976715
+# 04.16.3571 295 0.5876494023904383
+```
+
+
+
+상위 5개의 fwver의 errcode를 확인
+
+```python
+fwver = ['04.16.3553', '04.22.1750', '04.33.1261', '03.11.1167', '04.22.1778']
+
+for ver in fwver:
+    print(train_err[train_err['fwver'] == ver]['errcode'].value_counts().head(50))
+```
+
+connection timeout 등 connection과 관련된 error, B-A8002,  NFANDROID2, S-61001, active, standby 등의 error가 많이 발생
+
+test_err에서도 비슷한 양상을 보임
+
+
+
+중요하다고 생각되는 errcode들의 각 유저별 발생 빈도
+
+```python
+imp_errcode = ["connection", "B-A8002", "S-", "NFANDROID2", "active", "standby", "scanning timeout"]
+
+
+def add_imp_errcode(df, user_number, user_id_min, which):
+    dataset = np.zeros((user_number, 7))
+    index = df.groupby('user_id')['errcode'].value_counts().index
+    count = df.groupby('user_id')['errcode'].value_counts().values
+    for idx, val in zip(index, count):
+        # connection 키워드가 포함된 errcode
+        if "connection" in idx[1]:
+            dataset[idx[0] - user_id_min][0] += val
+        # S- 키워드가 포함된 errcode
+        elif "S-" in idx[1]:
+            dataset[idx[0] - user_id_min][2] += val
+        if idx[1] in imp_errcode:
+            dataset[idx[0] - user_id_min][imp_errcode.index(idx[1])] += val
+    dataset = pd.DataFrame(dataset, columns=imp_errcode)
+    dataset.to_csv("{}_important_errcode.csv".format(which), index=False)
+```
+
+
+
 ```python
 train_user_id_max = 24999
 train_user_id_min = 10000
@@ -1241,6 +1376,10 @@ errtype 4, 15, 31이 많이 발생
 
 
 
+**quality log가 발생하기 직전 발생한 errcode의 수**
+
+<img src="https://user-images.githubusercontent.com/58063806/106384521-9eb65000-640e-11eb-91f9-79c7bfedbd66.png" width=100% />
+
 **각 user별 quality log 발생 횟수**
 
 ```python
@@ -1341,6 +1480,42 @@ def count_fwver(df, user_number, user_id_min, which):
 # validation score - 0.8138381000000001
 ```
 
+유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver +  중요 errcode 발생 빈도
+
+```python
+# shape - (15000, 107)
+# validation score - 0.81603875
+```
+
+유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver +  중요 errcode 발생 빈도 + 유저별 해당 시간대 err 발생 빈도
+
+```python
+# shape - (15000, 131)
+# validation score - 0.8167112
+```
+
+유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver +  중요 errcode 발생 빈도 + 유저별 해당 시간대 err 발생 빈도 + 유저별 해당 요일 err 발생 빈도
+
+```python
+# shape - (15000, 138)
+# validation score - 0.816304
+```
+
+유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver +  중요 errcode 발생 빈도 + 유저별 해당 시간대 err 발생 빈도 + 유저별 해당 요일 err 발생 빈도 + 유저별 quality_log 별 가장 많이 발생한 값, 최대값 
+
+```python
+# shape - (15000, 164)
+# validation score - 0.8161432499999999
+```
+
+유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver +  중요 errcode 발생 빈도 +  유저별 quality_log 별 최대값
+
+```python
+# shape - (15000, 120)
+# validation score - 0.81743305
+# submission score - 0.8174800017	
+```
+
 
 
 **각 유저별 quality log의 평균값**
@@ -1415,7 +1590,11 @@ def fwver_quality_log(df, which):
     plt.savefig("plot/{}_avg_plot.png".format(which))
 ```
 
+quality_0, 2
 
+quality_1, 5, 6, 10, 11
+
+위의 log들의 분포가 유사
 
 ```python
 err = set().union(train_err['fwver'].unique(), test_err['fwver'].unique())
