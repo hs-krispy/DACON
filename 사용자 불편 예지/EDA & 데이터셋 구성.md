@@ -1153,31 +1153,51 @@ submission score - 0.8148646809
 **각 유저별로 시간대에 에러 발생 빈도수**
 
 ```python
-def hours(df, user_number, which):
+def hours(df, user_number, user_id_min, which):
     dataset = np.zeros((user_number, 24))
     df['datetime'] = df['time'].apply(return_time)
-    user_hours = df.groupby('user_id')['datetime'].unique().values.tolist()
-    hour_bins = df.groupby(['user_id', 'datetime'])['errtype'].count().values.tolist()
-    init = 0
-    for idx, id_hours in enumerate(user_hours):
-        id_hours = sorted(id_hours)
-        hb = hour_bins[init: init + len(id_hours)]
-        init += len(id_hours)
-        # 각 유저별 시간대와 해당 시간대에 에러 발생 빈도수
-        if which == "test" and idx >= 13262:
-            for hours, bins in zip(id_hours, hb):
-                dataset[idx + 1][hours] = bins
-        else:
-            for hours, bins in zip(id_hours, hb):
-                dataset[idx][hours] = bins
+    index = df.groupby(['user_id'])['datetime'].value_counts().index
+    count = df.groupby(['user_id'])['datetime'].value_counts().values
+    for idx, val in zip(index, count):
+        dataset[idx[0] - user_id_min][idx[1]] = val 
+    # # quality data 일때
+    # for idx, val in zip(index, count):
+    #     dataset[idx[0] - user_id_min][idx[1]] = val / 12
 
-    return dataset
+    dataset = pd.DataFrame(dataset)
+    dataset.to_csv("{}_err_per_hours.csv".format(which), index=False)
 ```
 
 ```python
 validation score - 0.8141719000000001
 submission score - 0.809710857	
 ```
+
+
+
+**각 유저별 해당 요일에 발생한 에러빈도**
+
+```python
+week = ['Mon', 'Tue', 'Wen', 'Thu', 'Fri', 'Sat', 'Sun']
+
+
+def week_bin(df, user_number, user_id_min, which):
+    dataset = np.zeros((user_number, 7))
+    df['datetime'] = df['time'].apply(make_datetime)
+    # 0 ~ 6, 월 ~ 일
+    df['datetime'] = df['datetime'].apply(lambda x: x.weekday())
+    index = df.groupby('user_id')['datetime'].value_counts().index
+    count = df.groupby('user_id')['datetime'].value_counts().values
+    for idx, val in zip(index, count):
+        dataset[idx[0] - user_id_min][idx[1]] = val
+    # # quality data 일때
+    # for idx, val in zip(index, count):
+    #     dataset[idx[0] - user_id_min][idx[1]] = val / 12
+    dataset = pd.DataFrame(dataset)
+    dataset.to_csv("{}_week_bin.csv".format(which), index=False)
+```
+
+
 
 **불만을 제기한 유저들과 그렇지 않은 유저들의 errcode 빈도 (상위 15개)**
 
@@ -1625,6 +1645,40 @@ for id in selected_user:
 이 결과 **25명의 유저 중 24명의 유저가 실제로 불만을 제기함**
 
 (fwver 09.17.1431을 사용하는 유저들을 대부분 불만을 제기한다고 유추 가능)
+
+
+
+**err dataset은 fwver 사용 유무, quality dataset은 fwver 빈도 체크**
+
+```python
+def count_fwver(df, df2, user_number, user_id_min, which):
+    dataset = np.zeros((user_number, 47))
+    dataset2 = np.zeros((user_number, 47))
+    user_fwver = df.groupby('user_id')['fwver'].value_counts().index
+    for id_ver in user_fwver:
+        dataset[id_ver[0] - user_id_min][id_ver[1]] = 1
+
+    user_fwver2 = df2.groupby('user_id')['fwver'].value_counts().index
+    cf2 = df2.groupby('user_id')['fwver'].value_counts().values
+    for id_ver, val in zip(user_fwver2, cf2):
+        dataset2[id_ver[0] - user_id_min][id_ver[1]] += val / 12
+
+    dataset = pd.DataFrame(dataset)
+    dataset.to_csv('{}_count_fwver.csv'.format(which), index=False)
+    dataset2 = pd.DataFrame(dataset2)
+    dataset2.to_csv('{}_quality_fwver.csv'.format(which), index=False)
+```
+
+유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver 체크(err dataset) +  유저별 사용 fwver 빈도(quality dataset) + 중요 errcode발생 빈도 + 유저별 해당 시간대 err 발생 빈도 + 유저별 해당 요일 err 발생 빈도 + 유저별 해당 시간대 quality_log 발생 빈도 + 유저별 해당 요일 quality_log 발생 빈도 + 유저별 quality_log 별 가장 많이 발생한 값, 최대값 
+
+```python
+train = pd.concat((train, train_errcode, train_quality_fwver, train_quality_hour, train_quality_week, train_hour, train_week, train_quality_most, train_quality_max), axis=1, ignore_index=True)
+# shape - (15000, 242)
+# validation score - 0.81907405
+# submission score - 0.8148001542	
+```
+
+
 
 ### feature_importance
 
