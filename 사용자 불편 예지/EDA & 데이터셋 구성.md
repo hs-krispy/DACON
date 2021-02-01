@@ -1675,7 +1675,7 @@ def count_fwver(df, df2, user_number, user_id_min, which):
 train = pd.concat((train, train_errcode, train_quality_fwver, train_quality_hour, train_quality_week, train_hour, train_week, train_quality_most, train_quality_max), axis=1, ignore_index=True)
 # shape - (15000, 242)
 # validation score - 0.81907405
-# submission score - 0.8148001542	
+# submission score - 0.8157693204
 ```
 
 
