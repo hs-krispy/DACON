@@ -36,17 +36,17 @@ print(X.shape)
 print(y.shape)
 
 param = {
-                 'max_depth': list(np.arange(7, 15, 2)),
-                 'num_leaves': list(np.arange(31, 101, 10)),
-                 'colsample_bytree': list(np.arange(0.6, 1.05, 0.1)),
-                 'subsample': list(np.arange(0.6, 1.05, 0.1)),
-                 'learning_rate': list(np.arange(0.1, 0.4, 0.1))
+                 'max_depth': list(np.arange(13, 16, 1)),
+                #  'colsample_bytree' : list(np.arange(0.6, 1.00, 0.05)),
+                #  'num_leaves' : list(np.arange(31, 100, 10)),
+                #  'reg_alpha': list(np.arange(0.01, 0.5, 0.05)),
+                #  'reg_lambda': list(np.arange(0.01, 0.5, 0.05))
+                 'learning_rate': list(np.arange(0.001, 0.01, 0.001))
             }
-
 def status_print(optim_result):
     all_models = pd.DataFrame(bayes_cv_tuner.cv_results_)
 
-    pp.pprint('Model #{}\nBest acc: {}\nBest params: {}\n'.format(
+    pp.pprint('Model #{}\nBest auc: {}\nBest params: {}\n'.format(
         len(all_models),
         bayes_cv_tuner.best_score_,
         bayes_cv_tuner.best_params_
@@ -54,46 +54,43 @@ def status_print(optim_result):
 
 
 skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-lgb = LGBMClassifier(n_estimators=1000, n_jobs=-1, random_state=42)
-bayes_cv_tuner = BayesSearchCV(estimator=lgb, search_spaces=param, scoring='roc_auc', cv=skf, n_jobs=-1, n_iter=50,
+lgb = LGBMClassifier(n_estimators=5000, colsample_bytree=0.6, num_leaves=50,
+                     min_child_samples=15, n_jobs=-1, reg_alpha=0.46, reg_lambda=0.11, random_state=42)
+bayes_cv_tuner = BayesSearchCV(estimator=lgb, search_spaces=param, scoring='roc_auc', cv=skf, n_jobs=-1, n_iter=200,
                                verbose=1, refit=True, random_state=42)
 bayes_cv_tuner.fit(X, y, callback=status_print)
 best_model = bayes_cv_tuner.best_estimator_
 y_pred = best_model.predict_proba(test)[:, 1]
-sample_submission = pd.read_csv('data/sample_submission.csv')
+sample_submission = pd.read_csv('Data/sample_submission.csv')
 sample_submission['problem'] = y_pred.reshape(-1)
 sample_submission.to_csv("final_submission.csv", index=False)
 ```
 
 
 
-### Grid Search
+Grid Search에 비해 비교적 시간이 적게들고 좋은 결과를 낼 수 있는 Bayesian Search를 이용해 parameter들의 범위를 점점 줄여나가면서 튜닝을 진행   
 
 ```python
-param_grid = {
-                 'max_depth': list(np.arange(7, 15, 2)),
-                 'num_leaves': list(np.arange(31, 101, 20)),
-                 'colsample_bytree': list(np.arange(0.6, 1.05, 0.1)),
-                 'subsample' : list(np.arange(0.6, 1.05, 0.1)),
-                 'learning_rate' : list(np.arange(0.1, 0.4, 0.1))
-            }
+lgb = LGBMClassifier(n_estimators=1500, max_depth=13, learning_rate=0.01, colsample_bytree=0.8, min_child_samples=15, n_jobs=-1, reg_alpha=0.05, reg_lambda=0.1, random_state=42)
+# validation - 0.8213191999999999
+# submission - 0.8209303742	
 
-lgb = LGBMClassifier(n_estimators=1000, n_jobs=-1, random_state=42)
+lgb = LGBMClassifier(n_estimators=1500, max_depth=13, learning_rate=0.01, colsample_bytree=0.6, min_child_samples=15, n_jobs=-1, reg_alpha=0.26, reg_lambda=0.11, random_state=42)
+# validation - 0.8216709
 
-skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-gcv = GridSearchCV(lgb, param_grid=param_grid, cv=skf, scoring='roc_auc', n_jobs=-1, verbose=1)
-gcv.fit(X, y)
-print('best params', gcv.best_params_)   # 최적의 파라미터 값
-print('best score', gcv.best_score_)    # 최고의 점수
+lgb = LGBMClassifier(n_estimators=1500, max_depth=13, learning_rate=0.01, colsample_bytree=0.6, num_leaves=50, min_child_samples=15, n_jobs=-1, reg_alpha=0.26, reg_lambda=0.11, random_state=42)
+# validation - 0.8221755
+# submission - 0.8229939643	
 
+lgb = LGBMClassifier(n_estimators=1500, max_depth=13, learning_rate=0.01, colsample_bytree=0.6, num_leaves=50, min_child_samples=15, n_jobs=-1, reg_alpha=0.46, reg_lambda=0.11, random_state=42)
+# validation - 0.8222208
 
-now = dt.datetime.now()
-print(now)
-
-model = gcv.best_estimator_    # 최고의 모델
-y_pred = model.predict_proba(test)[:, 1]
-sample_submission = pd.read_csv('data/sample_submission.csv')
-sample_submission['problem'] = y_pred.reshape(-1)
-sample_submission.to_csv("submission.csv", index=False)
+lgb = LGBMClassifier(n_estimators=2000, max_depth=13, learning_rate=0.005, colsample_bytree=0.6, num_leaves=50, min_child_samples=15, n_jobs=-1, reg_alpha=0.46, reg_lambda=0.11, random_state=42)
+# validation - 0.8224834000000001
+# Final submission - 0.8229607068	
 ```
+
+public score - 0.82299 (전체 테스트 data의 33%)
+
+private score - 0.82068 (전체 테스트 data의 67%)
 
