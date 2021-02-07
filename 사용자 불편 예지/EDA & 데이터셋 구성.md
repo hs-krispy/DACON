@@ -1,8 +1,10 @@
 ## 사용자 불편 예지
 
-### EDA
+### Data 전처리
 
-##### 결측값 처리
+
+
+#### 결측값 처리
 
 **train_err_data.csv**
 
@@ -122,6 +124,8 @@ print(count)
 - **B-A8002 errcode가 발생한 유저 중 약 40%**에 해당하는 인원이 **불만을 제기** 
 
 - **불만을 제기한 유저 중 거의 절반**에 해당하는 인원이 **B-A8002 errcode가 발생**한 것을 볼 수 있음
+
+
 
 **train_quality_data**
 
@@ -468,73 +472,7 @@ def add_imp_errcode(df, user_number, user_id_min, which):
 
 
 
-```python
-train_user_id_max = 24999
-train_user_id_min = 10000
-train_user_number = 15000
-
-# user_id와 errtype만을 사용하여 데이터 셋 생성
-id_error = train_err[['user_id', 'errtype']].values
-error = np.zeros((train_user_number, 42))
-
-# 각 유저에 대한 해당 에러의 발생빈도
-for person_idx, err in tqdm(id_error):
-    error[person_idx - train_user_id_min, err - 1] += 1
-    
-problem = np.zeros(15000)
-# person_idx의 problem이 한 번이라도 발생했다면 1, 없다면 0
-problem[train_prob.user_id.unique()-10000] = 1
-
-x = error
-y = problem
-
-# train data와 마찬가지로 test data 생성
-test_user_id_max = 44998
-test_user_id_min = 30000
-test_user_number = 14999
-
-id_error = test_err[['user_id', 'errtype']].values
-test_x = np.zeros((test_user_number, 42))
-for person_idx, err in tqdm(id_error):
-    test_x[person_idx - test_user_id_min, err - 1] += 1
-```
-
-### 테스팅
-
-```python
-skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-model = XGBClassifier(random_state=42)
-score = []
-for train_idx, valid_idx in skf.split(x, y):
-    train_x, valid_x = x[train_idx], x[valid_idx]
-    train_y, valid_y = y[train_idx], y[valid_idx]
-    evals = [(valid_x, valid_y)]
-    model.fit(train_x, train_y, early_stopping_rounds=30, eval_set=evals)
-    valid_prob = model.predict_proba(valid_x)[:, 1]
-    auc_score = roc_auc_score(valid_y, valid_prob)
-    score.append(auc_score)
-
-print(np.mean(score))
-# validation score - 0.8032662000000002
-# submission score - 0.80228
-
-model = Randomforest(random_state=42)
-# validation score - 0.79861015
-
-model = ExtraTreesClassifier(random_state=42)
-# validation score - 0.8000375500000001
-
-model = LGBMClassifier(random_state=42)
-# validation score - 0.8074797
-# after standard scaling validation score - 0.8080327999999998
-# submission score - 0.80732
-```
-
-
-
-### 추가적인 데이터 
-
-**train_err_data, test_err_data**
+#### LabelEncoding
 
 ```python
 encoder = LabelEncoder()
@@ -569,366 +507,24 @@ LabelEncoder를 통해 문자열로 구성되어 있는 피처들을 숫자형 �
 
 각각 9, 48, 4353개의 값을 가짐
 
-```python
-# ueser_id가 10000부터 24999까지 총 15000개가 연속적으로 존재.
-train_user_id_max = 24999
-train_user_id_min = 10000
-train_user_number = 15000
 
-sub_data = train_err[['user_id', 'errtype', 'errcode', 'model_nm']].values
-dataset = np.zeros((train_user_number, 52))
-
-count_errcode = np.zeros(4353)
-pre_idx = 10000
-for person_idx, errtype, errcode, model_nm in tqdm(sub_data):
-    if pre_idx != person_idx:
-        errccode = count_errcode.argmax()
-        dataset[pre_idx - train_user_id_min][42] = errcode
-        count_errcode = np.zeros(4353)
-        pre_idx = person_idx
-    # 에러타입 발생빈도
-    dataset[person_idx - train_user_id_min][errtype - 1] += 1 
-    # 해당 모델 사용 빈도
-    dataset[person_idx - train_user_id_min][43 + model_nm] += 1 
-    # 가장 많이 관측된 에러 코드 판별
-    count_errcode[errcode] += 1 
-
-dataset = pd.DataFrame(dataset)
-dataset.to_csv("train_dataset.csv", index=False)
-
-# test 데이터는 ueser_id가 30000부터 44998까지 총 14999개가 존재.
-test_user_id_max = 44998
-test_user_id_min = 30000
-test_user_number = 14999
-
-sub_data = test_err[['user_id', 'errtype', 'errcode', 'model_nm']].values
-dataset = np.zeros((test_user_number, 52))
-
-count_errcode = np.zeros(4353)
-pre_idx = 30000
-for person_idx, errtype, errcode, model_nm in tqdm(sub_data):
-    if pre_idx != person_idx:
-        errccode = count_errcode.argmax()
-        dataset[pre_idx - test_user_id_min][42] = errcode
-        count_errcode = np.zeros(4353)
-        pre_idx = person_idx
-    # 에러타입 발생빈도
-    dataset[person_idx - test_user_id_min][errtype - 1] += 1 
-    # 해당 모델 사용 빈도
-    dataset[person_idx - test_user_id_min][43 + model_nm] += 1 
-    # 가장 많이 관측된 에러 코드 판별
-    count_errcode[errcode] += 1 
-
-dataset = pd.DataFrame(dataset)
-dataset.to_csv("test_dataset.csv", index=False)
-```
-
-기존의 train_err 데이터에서 user_id, errtype, errcode, model_nm을 이용해서 새로운 데이터셋 생성
-
-동일한 조건에서 해당 데이터셋으로 성능 평가
 
 ```python
-skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-model = LGBMClassifier(random_state=42)
-score = []
-for train_idx, valid_idx in skf.split(x, y):
-    train_x, valid_x = x[train_idx], x[valid_idx]
-    train_y, valid_y = y[train_idx], y[valid_idx]
-    evals = [(valid_x, valid_y)]
-    model.fit(train_x, train_y, early_stopping_rounds=30, eval_set=evals)
-    valid_prob = model.predict_proba(valid_x)[:, 1]
-    auc_score = roc_auc_score(valid_y, valid_prob)
-    score.append(auc_score)
-
-print(np.mean(score))
-# validation score - 0.8145382
-# after standard scaling validation score - 0.813758
-# submission score - 0.81732
-```
-
-AUC가 0.01 정도 상승한 결과를 보임
-
-**train_quality_data**
-
-```python
-for i in range(13):
-    print("quality{} unique value count:".format(i), len(train_quality['quality_{}'.format(i)].unique()))
-```
-
-<img src="https://user-images.githubusercontent.com/58063806/104274902-34804e80-54e5-11eb-9fbc-e7ea4633a67b.png" width=30%/>
-
-```python
-# ,가 들어가 있어 산술연산이 불가능했던 column들에 대해 ,를 제거하고 다시 int형으로 변환
-for i in (5, 7, 8, 9, 10):
+# ,가 들어가 있어 산술연산이 불가능했던 value들이 있었던 data 대해 ,를 제거하고 다시 int형으로 변환
+for i in (13):
     train_quality['quality_{}'.format(i)].replace(',', '', regex=True, inplace=True)
     train_quality['quality_{}'.format(i)] = train_quality['quality_{}'.format(i)].astype(int)
-
-# 각 user_id의 시스템 퀄리티 별로 가장 많이 발생했던 값으로 설정
-dataset = np.zeros((train_user_number, 13))
-unique_id = train_quality['user_id'].unique().tolist()
-for id in unique_id:
-    for idx in range(13):
-        dataset[id - train_user_id_min, idx] = train_quality.loc[train_quality['user_id'] == id]['quality_{}'.format(idx)].value_counts().index[0]
-
-dataset = pd.DataFrame(dataset)
-dataset.to_csv("train_quality.csv")
-```
-
-<img src="https://user-images.githubusercontent.com/58063806/104280022-9b563580-54ee-11eb-8e40-9a7daaacc396.png" width=70% />
-
-**test_quality_data**
-
-train_quality_data와 동일한 방식으로 진행
-
-```python
-for i in range(13):
     test_quality['quality_{}'.format(i)].replace(',', '', regex=True, inplace=True)
-    test_quality['quality_{}'.format(i)] = test_quality['quality_{}'.format(i)].astype(int)
-
-dataset = np.zeros((test_user_number, 13))
-unique_id = test_quality['user_id'].unique().tolist()
-for id in unique_id:
-    for idx in range(13):
-        dataset[id - test_user_id_min, idx] = test_quality.loc[test_quality['user_id'] == id]['quality_{}'.format(idx)].value_counts().index[0]
-
-dataset = pd.DataFrame(dataset)
-dataset.to_csv("test_quality.csv")
-```
-
-<img src="https://user-images.githubusercontent.com/58063806/104281467-e83b0b80-54f0-11eb-9cdc-33364e373c48.png" width=70%/>
-
-```python
-train = pd.read_csv(PATH+'train_dataset.csv')
-test = pd.read_csv(PATH+'test_dataset.csv')
-train_quality = pd.read_csv(PATH+'train_quality.csv')
-test_quality = pd.read_csv(PATH+'test_quality.csv')
-train = pd.concat([train, train_quality], axis=1, ignore_index=True)
-train.drop(train.columns[52], axis='columns', inplace=True)
-test = pd.concat([test, test_quality], axis=1, ignore_index=True)
-test.drop(test.columns[52], axis='columns', inplace=True)
-```
-
-기존에 생성했던 train_dataset과 train_quality, test_dataset과 test_quality로 새로운 dataset 생성
-
-동일한 조건에서 해당 데이터셋으로 성능 평가
-
-```python
-skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-model = LGBMClassifier(random_state=42)
-score = []
-for train_idx, valid_idx in skf.split(x, y):
-    train_x, valid_x = x[train_idx], x[valid_idx]
-    train_y, valid_y = y[train_idx], y[valid_idx]
-    evals = [(valid_x, valid_y)]
-    model.fit(train_x, train_y, early_stopping_rounds=30, eval_set=evals)
-    valid_prob = model.predict_proba(valid_x)[:, 1]
-    auc_score = roc_auc_score(valid_y, valid_prob)
-    score.append(auc_score)
-
-print(np.mean(score))
-# validation score - 0.8147328
-# after standard scaling validation score - 0.8152645999999999
-# after standard scaling submission score - 0.8137198286
-# submission score - 0.8162371843	
-```
-
-train_quality, test_quality 데이터를 결합해서 생성한 새로운 데이터셋은 0.001 정도 AUC 감소를 보임
-
-**train_err_data, test_err_data**
-
-err_data에서 time 피처를 활용해서 errors_per_day라는 새로운 피처를 생성
-
-```python
-def make_datetime(x):
-    # string 타입의 Time column을 datetime 타입으로 변경
-    x = str(x)
-    year = int(x[:4])
-    month = int(x[4:6])
-    day = int(x[6:8])
-    return dt.datetime(year, month, day)
-
-# 각 유저별 하루동안 발생한 평균 에러의 갯수
-def cal_errors_per_day(df):
-    df['datetime'] = df['time'].apply(make_datetime)
-    unique_date = df.groupby('user_id')['datetime'].unique().values
-    # 각 유저별 err 발생 날짜의 갯수
-    count_date = []
-    for i in unique_date:
-        count_date.append(len(i))
-
-    # 각 유저별 발생한 에러의 횟수
-    id_error = df.groupby('user_id')['errtype'].count().values
-    avg_err = []
-    for idx, val in enumerate(count_date):
-        avg_err.append(id_error[idx] / val)
-
-    return avg_err
-
-
-train_avg_err = cal_errors_per_day(train_err)
-test_avg_err = cal_errors_per_day(test_err)
-```
-
-errors_per_day 피처를 추가한 데이터셋을 같은 조건에서 학습을 진행
-
-```python
-lgb = LGBMClassifier(random_state=42)
-
-def validation(model, x, y):
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    score = []
-    for train_idx, valid_idx in skf.split(x, y):
-        train_x, valid_x = x.iloc[train_idx], x.iloc[valid_idx]
-        train_y, valid_y = y[train_idx], y[valid_idx]
-        evals = [(valid_x, valid_y)]
-        model.fit(train_x, train_y, early_stopping_rounds=30, eval_set=evals)
-        valid_prob = model.predict_proba(valid_x)[:, 1]
-        auc_score = roc_auc_score(valid_y, valid_prob)
-        score.append(auc_score)
-
-    return np.mean(score)
-
-avg_AUC = validation(lgb, X, y)
-print(avg_AUC)
-
-# validation score - 0.814518
-# submission score - 0.8138071294	
+    test_quality['quality_{}'.format(i)] = train_quality['quality_{}'.format(i)].astype(int)
 ```
 
 
 
-**각 유저별 하루동안 발생한 평균 에러의 갯수**
-
-```python
-def make_datetime(x):
-    # string 타입의 Time column을 datetime 타입으로 변경
-    x = str(x)
-    year = int(x[:4])
-    month = int(x[4:6])
-    day = int(x[6:8])
-	
-    return dt.datetime(year, month, day)
-
-def cal_errors_per_day(df):
-    df['datetime'] = df['time'].apply(make_datetime)
-    unique_date = df.groupby('user_id')['datetime'].unique().values
-    # 각 유저별 err 발생 날짜의 갯수
-    count_date = []
-    for i in unique_date:
-        count_date.append(len(i))
-
-    # 각 유저별 발생한 에러의 횟수
-    id_error = df.groupby('user_id')['errtype'].count().values
-    avg_err = []
-    for idx, val in enumerate(count_date):
-        avg_err.append(id_error[idx] / val)
-
-    return avg_err
+#### Dataset 구성 (파생변수 생성)
 
 
-def cal_errors_per_day2(df):
-    df['datetime'] = df['time'].apply(make_datetime)
-    unique_date = df.groupby('user_id')['datetime'].unique().values
-    # 각 유저별 err 발생 날짜의 갯수
-    count_date = []
-    for i in unique_date:
-        count_date.append(len(i))
 
-    # 각 유저별 발생한 에러의 횟수
-    id_error = df.groupby('user_id')['errtype'].count().values
-    avg_err = []
-    for idx, val in enumerate(count_date[:13262]):
-        avg_err.append(id_error[idx] / val)
-    # user_id 43262에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
-    avg_err.append(0)
-    for idx, val in enumerate(count_date[13262:]):
-        avg_err.append(id_error[13262 + idx] / val)
-
-    return avg_err
-
-
-train_avg_err = cal_errors_per_day(train_err)
-test_avg_err = cal_errors_per_day2(test_err)
-```
-
-**각 유저별 에러가 발생한 간격**
-
-```python
-def make_datetime(x):
-    # string 타입의 Time column을 datetime 타입으로 변경
-    x = str(x)
-    year = int(x[:4])
-    month = int(x[4:6])
-    day = int(x[6:8])
-    hour = int(x[8:10])
-    mim = int(x[10:12])
-    sec = int(x[12:14])
-    return dt.datetime(year, month, day, hour, mim, sec)
-
-def cal_time_interval(df):
-    df['datetime'] = df['time'].apply(make_datetime)
-    # 각 유저별 에러발생 시간
-    times = df['datetime'].values
-    # 각 유저별 에러발생 횟수
-    count_time = df.groupby('user_id')['datetime'].count().values
-    time_interval = []
-    init = 0
-    for c in count_time:
-        if c == 1:
-            time_interval.append(0)
-            init += 1
-            continue
-        sum = 0
-        pre_t = 0
-        for idx, t in enumerate(times[init: init + c]):
-            if idx == 0:
-                pre_t = t
-                continue
-            sum += t - pre_t
-            pre_t = t
-        # 각 유저별 평균적으로 에러가 발생하는 간격
-        time_interval.append(sum / (c - 1))
-        init += c
-
-    return time_interval
-
-
-def cal_time_interval2(df):
-    df['datetime'] = df['time'].apply(make_datetime)
-    # 각 유저별 에러발생 시간
-    times = df['datetime'].values
-    # 각 유저별 에러발생 횟수
-    count_time = df.groupby('user_id')['datetime'].count().values
-    time_interval = []
-    init = 0
-    for c in count_time:
-        if c == 1:
-            time_interval.append(0)
-            init += 1
-            continue
-        sum = 0
-        pre_t = 0
-        for idx, t in enumerate(times[init: init + c]):
-            if idx == 0:
-                pre_t = t
-                continue
-            sum += t - pre_t
-            pre_t = t
-        # 각 유저별 평균적으로 에러가 발생하는 간격
-        time_interval.append(sum / (c - 1))
-        # user_id 43262에 대한 예외 처리 (에러가 발생하지 않았음으로 0으로 처리)
-        if len(time_interval) == 13262:
-            time_interval.append(0)
-        init += c
-
-    return time_interval
-
-
-train_time_interval = cal_time_interval(train_err)
-test_time_interval = cal_time_interval2(test_err)
-```
-
-**각 유저별로 errtype들의 발생빈도, 가장 많이 발생한 errcode, 각 model들의 사용빈도**
+**유저별로 errtype들의 발생빈도, 가장 많이 발생한 errcode, model들의 사용빈도**
 
 ```python
 sub_data = train_err[['user_id', 'errtype', 'errcode', 'model_nm']].values
@@ -988,54 +584,17 @@ dataset = pd.DataFrame(dataset, columns=label)
 dataset.to_csv("test_dataset.csv", index=False)
 ```
 
-해당 데이터셋으로 동일조건에서 학습
+**유저별 하루동안 발생한 평균 에러의 갯수**
 
 ```python
-lgb = LGBMClassifier(random_state=42)
-
-def validation(model, x, y):
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    score = []
-    for train_idx, valid_idx in skf.split(x, y):
-        train_x, valid_x = x.iloc[train_idx], x.iloc[valid_idx]
-        train_y, valid_y = y[train_idx], y[valid_idx]
-        evals = [(valid_x, valid_y)]
-        model.fit(train_x, train_y, early_stopping_rounds=30, eval_set=evals)
-        valid_prob = model.predict_proba(valid_x)[:, 1]
-        auc_score = roc_auc_score(valid_y, valid_prob)
-        score.append(auc_score)
-
-    return np.mean(score)
-
-avg_AUC = validation(lgb, X, y)
-print(avg_AUC)
-# validation score - 0.8129683
-# after standard scale score - 0.81278475
-# submission score - 0.8136799738	
-```
-
-```python
-print(train_err.groupby('user_id')['model_nm'].nunique())
-```
-
-데이터를 더 살펴본 결과 대부분의 유저에서 하나의 모델만 사용하는 것으로 나타남
-
-
-
-평균적으로 하루에 발생한 에러 데이터를 추가
-
- ```python
-# validation score - 0.81472955
-# submission score - 0.8169682162	
- ```
-
-error_time_interval의 수치들을 0 ~ 1사이의 값으로 scaling해서 다시 데이터셋 생성
-
-```python
-label = sorted(train_err['errtype'].unique().tolist())
-for i, val in enumerate(label):
-    label[i] = "errtype_" + str(val)
-label.extend(['errcode', 'model_nm', 'errors_per_day', 'error_time_interval'])
+def make_datetime(x):
+    # string 타입의 Time column을 datetime 타입으로 변경
+    x = str(x)
+    year = int(x[:4])
+    month = int(x[4:6])
+    day = int(x[6:8])
+	
+    return dt.datetime(year, month, day)
 
 # 각 유저별 하루동안 발생한 평균 에러의 갯수
 def cal_errors_per_day(df, which):
@@ -1065,7 +624,21 @@ def cal_errors_per_day(df, which):
 
 train_avg_err = cal_errors_per_day(train_err, "train")
 test_avg_err = cal_errors_per_day(test_err, "test")
+```
 
+**유저별 에러가 발생한 간격**
+
+```python
+def make_datetime2(x):
+    # string 타입의 Time column을 datetime 타입으로 변경
+    x = str(x)
+    year = int(x[:4])
+    month = int(x[4:6])
+    day = int(x[6:8])
+    hour = int(x[8:10])
+    mim = int(x[10:12])
+    sec = int(x[12:14])
+    return dt.datetime(year, month, day, hour, mim, sec)
 
 # 각 유저별 에러가 발생한 간격
 def cal_time_interval(df, which):
@@ -1101,56 +674,17 @@ def cal_time_interval(df, which):
                 time_interval.append(0)
         init += c
         
-    # 값을 0 ~ 1 사이로 스케일링
+    # time값들이 nano sec 단위로 매우 큰 값들이 나옴으로 값을 0 ~ 1 사이로 스케일링
     scaler = MinMaxScaler()
     time_interval = np.array(time_interval).reshape(-1, 1)
     time_interval = scaler.fit_transform(time_interval)
     return time_interval
 
-
 train_time_interval = cal_time_interval(train_err, "train")
-test_time_interval = cal_time_interval(test_err, "test")
-
-
-def making_dataset(df, user_number, user_id_min, avg_err, time_interval):
-    sub_data = df[['user_id', 'errtype', 'errcode', 'model_nm']].values
-    dataset = np.zeros((user_number, 53))
-
-    count_errcode = np.zeros(4353)
-    pre_idx = user_id_min
-    for idx, (avg_err, time_interval) in enumerate(zip(avg_err, time_interval)):
-        dataset[idx][51] = avg_err
-        dataset[idx][52] = time_interval
-    for person_idx, errtype, errcode, model_nm in tqdm(sub_data):
-        if pre_idx != person_idx:
-            errcode = count_errcode.argmax()
-            dataset[pre_idx - user_id_min][41] = errcode
-            count_errcode = np.zeros(4353)
-            pre_idx = person_idx
-        if errtype > 29:
-            dataset[person_idx - user_id_min][errtype - 2] += 1
-        else:
-            dataset[person_idx - user_id_min][errtype - 1] += 1  # 에러타입 발생빈도
-        # 각 모델의 사용 빈도
-        dataset[person_idx - user_id_min][42 + model_nm] += 1
-        count_errcode[errcode] += 1  # 가장 많이 관측된 에러 코드 판별
-
-    dataset = pd.DataFrame(dataset, columns=label)
-    dataset.to_csv("train_dataset.csv", index=False)
-    return dataset
-
-
-
-making_dataset(train_err, train_user_number, train_user_id_min, train_model_nm, train_avg_err, train_time_interval, "train")
-making_dataset(test_err, test_user_number, test_user_id_min, test_model_nm, test_avg_err, test_time_interval, "test")
+test_time_interval = cal_time_interval2(test_err, "tet"")
 ```
 
-```python
-validation score - 0.8132780000000001
-submission score - 0.8148646809
-```
-
-**각 유저별로 시간대에 에러 발생 빈도수**
+**유저별로 시간대에 에러 발생 빈도수**
 
 ```python
 def hours(df, user_number, user_id_min, which):
@@ -1168,14 +702,7 @@ def hours(df, user_number, user_id_min, which):
     dataset.to_csv("{}_err_per_hours.csv".format(which), index=False)
 ```
 
-```python
-validation score - 0.8141719000000001
-submission score - 0.809710857	
-```
-
-
-
-**각 유저별 해당 요일에 발생한 에러빈도**
+**유저별 해당 요일에 발생한 에러빈도**
 
 ```python
 week = ['Mon', 'Tue', 'Wen', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -1278,6 +805,8 @@ plt.show()
 
 해당 에러코드의 발생빈도가 불만여부에 영향을 미친다고 판단
 
+유저별로 해당 errcode의 발생빈도를 체크
+
 ```python
 important_errcode = [418, 367, 4344, 4341, 4295]
 
@@ -1296,6 +825,10 @@ def important_errcode_count(df, user_number, user_id_min, which):
 important_errcode_count(train_err, train_user_number, train_user_id_min, "train")
 important_errcode_count(test_err, test_user_number, test_user_id_min, "test")
 ```
+
+성능의 개선은 이루어지지 않음
+
+
 
 불만을 제기한 유저와 그렇지 않은 경우, quality data가 존재하는 유저와 그렇지 않은 경우의 errtype 분포비교
 
@@ -1400,7 +933,7 @@ errtype 4, 15, 31이 많이 발생
 
 <img src="https://user-images.githubusercontent.com/58063806/106384521-9eb65000-640e-11eb-91f9-79c7bfedbd66.png" width=100% />
 
-**각 user별 quality log 발생 횟수**
+**유저별 quality log 발생 횟수**
 
 ```python
 def cal_quality_bins(quality_log, user_number, user_id_min):
@@ -1413,17 +946,6 @@ def cal_quality_bins(quality_log, user_number, user_id_min):
     dataset = pd.concat((train, dataset), axis=1, ignore_index=True)
 
     return dataset
-
-# validation score - 0.8159702999999998
-# submission score - 0.8124374276	
-
-# error_time_interval 제거
-# validation score - 0.81577165
-# submission score - 0.815548357	
-
-# error_time_interval, errcode, errors_per_day 제거
-# validation score - 0.8168468500000001
-# submission score - 0.8152312361	
 ```
 
 **err, quality data 간의 fwver 분포비교**
@@ -1448,97 +970,62 @@ plt.show()
 
 **fwver - 8.5.3, 10의 경우에는 err에 비해 quality에서 매우 높게 나타나고있음**  
 
-해당 firmware version에서 시스템 작동 상태 중 관련보다 문제가 많이 발생한다는 것을 의미 
+해당 firmware version에서 시스템 작동 상태 중 관련보다 문제가 많이 발생한다고 판단
 
 
 
-**각 user별 fwver 체크**
+**유저별 fwver 체크**
 
 ```python
-def count_fwver(df, user_number, user_id_min, which):
+def count_fwver(df, df2, user_number, user_id_min, which):
     dataset = np.zeros((user_number, 47))
+    dataset2 = np.zeros((user_number, 47))
     user_fwver = df.groupby('user_id')['fwver'].value_counts().index
     for id_ver in user_fwver:
-        dataset[id_ver[0] - user_id_min][id_ver[1]] = 1  # true
+        dataset[id_ver[0] - user_id_min][id_ver[1]] = 1
+
+    user_fwver2 = df2.groupby('user_id')['fwver'].value_counts().index
+    cf2 = df2.groupby('user_id')['fwver'].value_counts().values
+    for id_ver, val in zip(user_fwver2, cf2):
+        dataset2[id_ver[0] - user_id_min][id_ver[1]] += val / 12
 
     dataset = pd.DataFrame(dataset)
     dataset.to_csv('{}_count_fwver.csv'.format(which), index=False)
+    dataset2 = pd.DataFrame(dataset2)
+    dataset2.to_csv('{}_quality_fwver.csv'.format(which), index=False)
 ```
 
 
 
-유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling)
+**유저별 quality_log 별 최빈값, 최대값**
 
 ```python
-# shape - (15000, 53)
-# validation score - 0.8168471
-```
-
-유저별 errtype 발생빈도와 + 유저별 사용 fwver + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling)
-
-```python
-# shape - (15000, 91)
-# validation score - 0.8162563
-```
-
-유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver 
-
-``` python
-# shape - (15000, 100)
-# validation score - 0.81776885
-# submission score - 0.8123721779
-
-# feature_importance가 0인 피처들을 제거
-# shape - (15000, 61)
-# validation score - 0.8175133499999999
-```
-
-유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver + 시간대 별 err 발생 횟수
-
-```python
-# shape - (15000, 124)
-# validation score - 0.8138381000000001
-```
-
-유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver +  중요 errcode 발생 빈도
-
-```python
-# shape - (15000, 107)
-# validation score - 0.81603875
-```
-
-유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver +  중요 errcode 발생 빈도 + 유저별 해당 시간대 err 발생 빈도
-
-```python
-# shape - (15000, 131)
-# validation score - 0.8167112
-```
-
-유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver +  중요 errcode 발생 빈도 + 유저별 해당 시간대 err 발생 빈도 + 유저별 해당 요일 err 발생 빈도
-
-```python
-# shape - (15000, 138)
-# validation score - 0.816304
-```
-
-유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver +  중요 errcode 발생 빈도 + 유저별 해당 시간대 err 발생 빈도 + 유저별 해당 요일 err 발생 빈도 + 유저별 quality_log 별 가장 많이 발생한 값, 최대값 
-
-```python
-# shape - (15000, 164)
-# validation score - 0.8161432499999999
-```
-
-유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver +  중요 errcode 발생 빈도 +  유저별 quality_log 별 최대값
-
-```python
-# shape - (15000, 120)
-# validation score - 0.81743305
-# submission score - 0.8174800017	
+def most_appear_max_val(df, user_number, user_id_min, which):
+    for i in range(13):
+        df['quality_{}'.format(i)].replace(',', '', regex=True, inplace=True)
+        df['quality_{}'.format(i)] = df['quality_{}'.format(i)].astype(int)
+    dataset = np.zeros((user_number, 13))
+    dataset2 = np.zeros((user_number, 13))
+    user_id = df['user_id'].unique()
+    for i in range(13):
+        for id in user_id:
+            dataset[id - user_id_min][i] = df[df['user_id'] == id]['quality_{}'.format(i)].mode()[0]
+            dataset2[id - user_id_min][i] = df[df['user_id'] == id]['quality_{}'.format(i)].max()
+    col = df.columns[3:]
+    most_appear = []
+    max_value = []
+    for name in col:
+        most_appear.append("most_appear_" + name)
+        max_value.append("max_value_" + name)
+    dataset = pd.DataFrame(dataset, columns=most_appear)
+    dataset2 = pd.DataFrame(dataset2, columns=max_value)
+    dataset.to_csv("{}_most_appear_value.csv".format(which), index=False)
+    dataset2.to_csv("{}_max_value.csv".format(which), index=False)
 ```
 
 
 
-**각 유저별 quality log의 평균값**
+**유저별 quality_log의 평균값**
 
 ```python
 def mean_quality(df, user_number, user_id_min, which):
@@ -1553,26 +1040,13 @@ def mean_quality(df, user_number, user_id_min, which):
     dataset.to_csv("{}_mean_quality.csv".format(which), index=False)
 ```
 
-train, test 모두 quality_3, quality_4는 모든 값이 0으로 구성
-
- 
-
-유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver  + 유저별 quality 평균값
-
-```python
-# shape - (15000, 113)
-# validation score - 0.8167156500000001
-```
 
 
-
-**각 fwver별로 quality_log의 값이 0이 아닌 분포**
+**fwver별로 quality_log의 값이 0이 아닌 분포**
 
 ```python
 fwver = list(set().union(train_quality['fwver'].unique(), test_quality['fwver'].unique()))
 scaler = MinMaxScaler()
-global check
-check = False
 
 
 def fwver_quality_log(df, which):
@@ -1597,11 +1071,7 @@ def fwver_quality_log(df, which):
                 Dict[idx] = 0
         values = np.array(list(Dict.values()))
         values = values.reshape(-1, 1)
-        if not check:
-            values = scaler.fit_transform(values)
-            check = True
-        else:
-            values = scaler.transform(values)
+        values = scaler.fit_transform(values)
         values = np.squeeze(values, axis=1)
         ax = fig.add_subplot(3, 5, i + 1)
         ax.bar(Dict.keys(), values)
@@ -1610,11 +1080,13 @@ def fwver_quality_log(df, which):
     plt.savefig("plot/{}_avg_plot.png".format(which))
 ```
 
-quality_0, 2
+train
 
-quality_1, 5, 6, 10, 11
+<img src="https://user-images.githubusercontent.com/58063806/107142099-04a35a00-6970-11eb-8924-093e084dcbbf.png" width=100% />
 
-위의 log들의 분포가 유사
+test
+
+<img src="https://user-images.githubusercontent.com/58063806/107142079-e2a9d780-696f-11eb-8b2a-165006da0190.png" width=100% />
 
 ```python
 err = set().union(train_err['fwver'].unique(), test_err['fwver'].unique())
@@ -1667,15 +1139,6 @@ def count_fwver(df, df2, user_number, user_id_min, which):
     dataset.to_csv('{}_count_fwver.csv'.format(which), index=False)
     dataset2 = pd.DataFrame(dataset2)
     dataset2.to_csv('{}_quality_fwver.csv'.format(which), index=False)
-```
-
-유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver 체크(err dataset) +  유저별 사용 fwver 빈도(quality dataset) + 중요 errcode발생 빈도 + 유저별 해당 시간대 err 발생 빈도 + 유저별 해당 요일 err 발생 빈도 + 유저별 해당 시간대 quality_log 발생 빈도 + 유저별 해당 요일 quality_log 발생 빈도 + 유저별 quality_log 별 가장 많이 발생한 값, 최대값 
-
-```python
-train = pd.concat((train, train_errcode, train_quality_fwver, train_quality_hour, train_quality_week, train_hour, train_week, train_quality_most, train_quality_max), axis=1, ignore_index=True)
-# shape - (15000, 242)
-# validation score - 0.81907405
-# submission score - 0.8157693204
 ```
 
 
@@ -1741,4 +1204,4 @@ error_time_interval 추가
 
 유저별 errtype 발생빈도와 + 사용 model_nm + 유저별 quality log 발생 빈도 + 하루 평균 err 발생량 + 에러 간의 interval(Minmax scaling) + 유저별 사용 fwver 
 
-상당수의 피처 중요도가 0으로 나타남
+상당수의 피처 중요도가 0으로 나타남 (피처 중요도가 0으로 나타난 피처들을 제거하고 학습을 진행했지만 개선X)
