@@ -1,5 +1,67 @@
 ## EDA
 
+#### 차량 정보
+
+- 차량의 정보와 고객의 차량 출고, 보유에 관한 일자와 구매이력이 있으며 대차, 추가구매 추정에 있어 중요한 정보가 될 것으로 판단
+
+우선적으로 결측값 확인 
+
+```python
+print(cars.isnull().sum())
+
+# CAR_ID                   0
+# CUS_ID                   0
+# WHOT_DT                  0
+# CAR_HLDG_STRT_DT         0
+# CAR_HLDG_FNH_DT     894153
+# CAR_NM                   0
+# CAR_CGRD_NM_1            0
+# CAR_CGRD_NM_2            0
+# CAR_ENG_NM               0
+# CAR_TRIM_NM            287
+```
+
+전체 데이터의 갯수 1835830개의 절반에 미칠 정도로 보유종료일자에 결측값(NULL)이 상당히 많은데 이는 차량을 처분하지 않은 상태 
+
+CAR_TRIM_NM(트림)은 자동차를 구매할 때 **부가적인 옵션**을 지칭한다고 함
+
+```python
+trim_null = cars[cars["CAR_TRIM_NM"].isnull()]
+
+qgrid_widget = qgrid.show_grid(trim_null, show_toolbar=True)
+qgrid_widget
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/115402132-19308800-a226-11eb-80fc-5a2e8ccefa54.png" width=100% />
+
+**2008/06/17 ~ 2009/08/27 기간에 출고된 차량등급이 RV 중형 SUV인 2.2 Type의 엔진을 가진 일부 싼타페**의 경우에서 모든 트림명 결측치가 발생
+
+해당 시기의 싼타페 차량의 경우 CLX, MLX, SLX 옵션이 있는데 CLX << MLX << SLX 순서로 더 좋은 옵션이라고 함
+
+**CAR_CGRD_NM_1(차량등급명1)**
+
+승용, RV(레저용 자동차), 해당없음 (3가지의 항목이 존재)
+
+차량등급명1이 **해당없음에 해당하는 데이터들을 보면 2007/01/03 ~ 2007/12/04 기간에 출고된 베르나, 쏘나타, 클릭 3가지 차 종류**가 해당되며 **CAR_ENG_NM(엔진타입명)과 CAR_TRIM_NM(트림명) 또한 해당없음**으로 나타남 
+
+비슷한 시기에 동일한 차량에 대한 정보를 보면 CAR_CGRD_NM_1이 대부분 승용으로 나타남 **(CAR_CGRD_NM_1이 해당없음인 데이터들도 승용으로 봐도 무방)**
+
+```python
+select = cars.groupby("CUS_ID")["CAR_ID"].count() >= 2
+selected_cus = select[select == True].index
+select_cars = cars[cars["CUS_ID"].isin(selected_cus)]
+qgrid_widget = qgrid.show_grid(select_cars, show_toolbar=True)
+qgrid_widget
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/115413419-1cc90c80-a230-11eb-890f-e6cf7c607cb1.png" width=100% />
+
+**차량 출고 정보가 2개 이상 존재하는 고객에 대해 조회 (1345394개의 데이터로 전체의 약 70% 정도에 해당)**
+
+고객이 **기존의 차량을 보유종료하는 일자와 다음 차를 출고하는 일자**를 중심으로 대차와 추가구매를 추정
+
+
+
 #### 접촉 정보
 
 - **고객이 자발적으로 현대자동차에 접촉**한 데이터로 접촉업무명이 중보한 정보가 될 것으로 판단
