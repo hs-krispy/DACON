@@ -1,5 +1,30 @@
 ## EDA
 
+#### 고객 정보
+
+- 차량 구매 이력이 있는 고객의 정보
+- 고객별로 주소 data는 없을 수 있음
+
+우선적으로 결측값 확인
+
+```python
+print(customer.isnull().sum())
+
+# CUS_ID                    0	고객 ID
+# PSN_BIZR_YN          957264	개인사업자여부
+# SEX_SCN_NM                0	성별
+# TYMD                      0	생년월일
+# CUS_ADM_TRY_NM       144396	주소_행정시도명
+# CUS_N_ADMZ_NM        147294	주소_시군구명
+# CUS_ADMB_NM          855306	주소_행정동명
+# CLB_HOUS_PYG_NM      473289	주택 평형
+# REAI_BZTC_AVG_PCE    508626	주택 평균가격
+```
+
+- PSN_BIZR_YN는 개인사업자여부로 **Y인 경우에만 사업자등록이 된 고객**이고 null값인 고객은 그렇지 않은 경우로 판단
+- 나머지 결측값이 있는 컬럼들은 고객의 주소와 주택 정보에 해당
+- 주소나 주택의 정보가 있는 고객들은 이러한 정보도 활용 가능
+
 #### 차량 정보
 
 - 차량의 정보와 고객의 차량 출고, 보유에 관한 일자와 구매이력이 있으며 대차, 추가구매 추정에 있어 중요한 정보가 될 것으로 판단
@@ -9,16 +34,16 @@
 ```python
 print(cars.isnull().sum())
 
-# CAR_ID                   0
-# CUS_ID                   0
-# WHOT_DT                  0
-# CAR_HLDG_STRT_DT         0
-# CAR_HLDG_FNH_DT     894153
-# CAR_NM                   0
-# CAR_CGRD_NM_1            0
-# CAR_CGRD_NM_2            0
-# CAR_ENG_NM               0
-# CAR_TRIM_NM            287
+# CAR_ID                   0	차량 ID
+# CUS_ID                   0	고객 ID
+# WHOT_DT                  0	출고일자
+# CAR_HLDG_STRT_DT         0	보유시작일자
+# CAR_HLDG_FNH_DT     894153	보유종료일자
+# CAR_NM                   0	차량명
+# CAR_CGRD_NM_1            0	차량등급명1
+# CAR_CGRD_NM_2            0	차량등급명2
+# CAR_ENG_NM               0	엔진타입명
+# CAR_TRIM_NM            287	트림명
 ```
 
 전체 데이터의 갯수 1835830개의 절반에 미칠 정도로 보유종료일자에 결측값(NULL)이 상당히 많은데 이는 차량을 처분하지 않은 상태 
@@ -56,11 +81,16 @@ qgrid_widget
 
 <img src="https://user-images.githubusercontent.com/58063806/115413419-1cc90c80-a230-11eb-890f-e6cf7c607cb1.png" width=100% />
 
-**차량 출고 정보가 2개 이상 존재하는 고객에 대해 조회 (1345394개의 데이터로 전체의 약 70% 정도에 해당)**
+- **차량 출고 정보가 2개 이상 존재하는 경우에 대해 조회 (1345394개의 데이터로 전체의 약 70% 정도에 해당)**
+- 전체 **1096206명의 고객 중 605770명 (약 55% 정도)의 고객이 차량 출고 정보가 2개 이상 존재** 
 
 고객이 **기존의 차량을 보유종료하는 일자와 다음 차를 출고하는 일자**를 중심으로 대차와 추가구매를 추정
 
+<img src="https://user-images.githubusercontent.com/58063806/115569607-5cf3c200-a2f8-11eb-81c5-8f6feac6fb92.png" width=100% />
 
+**대차로 추정(기존 차량의 보유종료일자와 다음 차량의 출고일자에 거의 차이가 없음)되는 경우**와 **추가구매로 추정(기존 차량의 보유종류일자가 다음 차량의 출고일자보다 훨씬 나중)되는 경우 모두 존재**하는 경우의 고객 정보도 확인
+
+> 이러한 경우에는 고객의 관점에서 추가적으로 어떤 정보를 이용해서 대차와 추가구매를 추정할지 고려해야 함
 
 #### 접촉 정보
 
@@ -71,11 +101,11 @@ qgrid_widget
 ```python
 print(contact.isnull().sum())
 
-# CNTC_SN             0
-# CUS_ID              0
-# CNTC_DT             0
-# CNTC_CHAN_NM        0
-# CNTC_AFFR_SCN_NM    0
+# CNTC_SN             0		접촉일련번호
+# CUS_ID              0		고객 ID
+# CNTC_DT             0		접촉일자
+# CNTC_CHAN_NM        0		접촉채널명
+# CNTC_AFFR_SCN_NM    0		접촉업무명
 ```
 
 **접촉채널명**
