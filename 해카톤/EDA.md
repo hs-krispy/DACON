@@ -25,6 +25,48 @@ print(customer.isnull().sum())
 - 나머지 결측값이 있는 컬럼들은 고객의 주소와 주택 정보에 해당
 - 주소나 주택의 정보가 있는 고객들은 이러한 정보도 활용 가능
 
+고객들의 주택 평균가격을 확인
+
+```python
+print(customer["REAI_BZTC_AVG_PCE"].mean(axis=0))
+# 47164.57554715953
+```
+
+전체적으로 가격들을 살펴보았을때 단위는 천원 단위로 가정 (평균적인 가격은 4억 7천만원 정도로 확인)
+
+```python
+selected_cus = customer[customer["REAI_BZTC_AVG_PCE"] >= customer["REAI_BZTC_AVG_PCE"].mean(axis=0)]["CUS_ID"].unique()
+```
+
+주택가격이 평균 이상인 고객들을 추출 (200105 명)
+
+```python
+select = df.groupby("CUS_ID")["CAR_ID"].count() >= 2
+selected_cus2 = select[select == True].index
+new_cus = list(set(selected_cus) & set(selected_cus2))
+print(len(new_cus))
+# 119481
+```
+
+주택가격이 평균 이상이면서 차량구매이력이 2개 이상인 고객들을 추출(119481 명)
+
+```python
+df.groupby("CUS_ID")["WHOT_DT"].unique()
+df.groupby("CUS_ID")["CAR_HLDG_FNH_DT"].unique()
+```
+
+해당 고객들의 차량 출고일과 차량 보유종료일
+
+```python
+area = customer[customer["CUS_ID"].isin(new_cus)]["CUS_N_ADMZ_NM"].value_counts()
+```
+
+해당 고객들의 주소_시군구명 파악
+
+<img src="https://user-images.githubusercontent.com/58063806/115731121-d5728580-a3c1-11eb-9a8a-aab652263b43.png" width=60% />
+
+위의 주소정보를 바탕으로 주택에 대한 정보가 없는 고객들의 주택 정보를 대략적으로 파악가능
+
 #### 차량 정보
 
 - 차량의 정보와 고객의 차량 출고, 보유에 관한 일자와 구매이력이 있으며 대차, 추가구매 추정에 있어 중요한 정보가 될 것으로 판단
