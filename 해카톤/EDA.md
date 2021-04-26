@@ -25,6 +25,31 @@ print(customer.isnull().sum())
 - 나머지 결측값이 있는 컬럼들은 고객의 주소와 주택 정보에 해당
 - 주소나 주택의 정보가 있는 고객들은 이러한 정보도 활용 가능
 
+```python
+import qgrid
+
+qgrid_widget = qgrid.show_grid(customer[customer["TYMD"] > 20210100], show_toolbar=True)
+qgrid_widget
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/115995096-d9e2ac80-a614-11eb-8295-b84c04e80515.png" width=100% />
+
+다음과 같이 생년월일이 제대로 기재되어 있지 않은 고객 23명 확인
+
+```python
+# 개인 사업자
+PSN_Y = customer[customer["PSN_BIZR_YN"] == "Y"]["CUS_ID"].tolist()
+print(len(PSN_Y))
+# 138942
+
+df = cars[cars["CUS_ID"].isin(PSN_Y)].groupby("CUS_ID")["CAR_ID"].count() >= 2
+select_cid = df[df == True].index.tolist()
+print(len(select_cid))
+# 95150
+```
+
+**개인 사업자로 등록된 고객은 138942**명이고 그 중, 차량 출고정보가 2개 이상있는 고객은 95150명으로 70% 이상 해당
+
 고객들의 주택 평균가격을 확인
 
 ```python
@@ -66,6 +91,8 @@ area = customer[customer["CUS_ID"].isin(new_cus)]["CUS_N_ADMZ_NM"].value_counts(
 <img src="https://user-images.githubusercontent.com/58063806/115731121-d5728580-a3c1-11eb-9a8a-aab652263b43.png" width=60% />
 
 위의 주소정보를 바탕으로 주택에 대한 정보가 없는 고객들의 주택 정보를 대략적으로 파악가능
+
+
 
 #### 차량 정보
 
@@ -134,6 +161,36 @@ qgrid_widget
 
 > 이러한 경우에는 고객의 관점에서 추가적으로 어떤 정보를 이용해서 대차와 추가구매를 추정할지 고려해야 함
 
+총 46대의 차종에 대해 출고 빈도를 시각화
+
+```python
+import matplotlib.pyplot as plt
+
+car_name = cars["CAR_NM"].value_counts().index.tolist()
+counts = cars["CAR_NM"].value_counts().values.tolist()
+plt.figure(figsize=(17, 10))
+plt.bar(range(len(car_name)), counts)
+plt.rc("font", family="Malgun Gothic")
+plt.xticks(range(len(car_name)), car_name, rotation=90)
+plt.show()
+```
+
+**전체 고객의 차량 출고 빈도**
+
+<img src="https://user-images.githubusercontent.com/58063806/116095777-af135980-a6e3-11eb-84d0-de5baf8f2122.png" width=100% />
+
+**개인사업자 등록 고객의 차량 출고 빈도**
+
+<img src="https://user-images.githubusercontent.com/58063806/116096326-2ba63800-a6e4-11eb-9090-8ebcf68f3b7f.png" width=100% />
+
+**개인사업자 미등록 고객의 차량 출고 빈도**
+
+<img src="https://user-images.githubusercontent.com/58063806/116096682-72942d80-a6e4-11eb-934e-605fb0f44b66.png" width=100% />
+
+차종에 있어서는 크게 차이나는 부분없이 비슷한 분포를 보임
+
+
+
 #### 접촉 정보
 
 - **고객이 자발적으로 현대자동차에 접촉**한 데이터로 접촉업무명이 중보한 정보가 될 것으로 판단
@@ -186,8 +243,6 @@ print(contact[contact.CNTC_CHAN_NM == "응모"]["CNTC_AFFR_SCN_NM"].unique())
 **전화 - 일반상담, 불만상담 (2)**
 
 **참석 - 고객초청행사 (1)**
-
-
 
 - 접촉채널이 당첨, 응모, 이벤트, 참석인 경우에는 오직 고객초청행사, 이벤트 같은 행사 용무로 접촉 
 
