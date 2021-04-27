@@ -48,7 +48,7 @@ print(len(select_cid))
 # 95150
 ```
 
-**개인 사업자로 등록된 고객은 138942**명이고 그 중, 차량 출고정보가 2개 이상있는 고객은 95150명으로 70% 이상 해당
+총 1096206명의 고객 중 **개인 사업자로 등록된 고객은 138942**명이고 그 중, 차량 출고정보가 2개 이상있는 고객은 95150명으로 70% 이상 해당
 
 고객들의 주택 평균가격을 확인
 
@@ -167,7 +167,7 @@ qgrid_widget
 import matplotlib.pyplot as plt
 
 car_name = cars["CAR_NM"].value_counts().index.tolist()
-counts = cars["CAR_NM"].value_counts().values.tolist()
+counts = cars["CAR_NM"].value_counts().values / cars["CAR_NM"].value_counts().values.sum()
 plt.figure(figsize=(17, 10))
 plt.bar(range(len(car_name)), counts)
 plt.rc("font", family="Malgun Gothic")
@@ -175,21 +175,23 @@ plt.xticks(range(len(car_name)), car_name, rotation=90)
 plt.show()
 ```
 
-**전체 고객의 차량 출고 빈도**
+**전체 고객의 차종별 출고 비율**
 
-<img src="https://user-images.githubusercontent.com/58063806/116095777-af135980-a6e3-11eb-84d0-de5baf8f2122.png" width=100% />
+<img src="https://user-images.githubusercontent.com/58063806/116247780-27425380-a7a6-11eb-9238-2e66b5a22d33.png" width=100% />
 
-**개인사업자 등록 고객의 차량 출고 빈도**
+**개인사업자 미등록 고객의 차종별 출고 비율**
 
-<img src="https://user-images.githubusercontent.com/58063806/116096326-2ba63800-a6e4-11eb-9090-8ebcf68f3b7f.png" width=100% />
+<img src="https://user-images.githubusercontent.com/58063806/116246673-2b21a600-a7a5-11eb-8ddb-9cde83d14f71.png" width=100% />
 
-**개인사업자 미등록 고객의 차량 출고 빈도**
+**개인사업자 등록 고객의 차종별 출고 비율**
 
-<img src="https://user-images.githubusercontent.com/58063806/116096682-72942d80-a6e4-11eb-934e-605fb0f44b66.png" width=100% />
-
-차종에 있어서는 크게 차이나는 부분없이 비슷한 분포를 보임
+<img src="https://user-images.githubusercontent.com/58063806/116247623-024de080-a7a6-11eb-86e4-61c18c36a558.png" width=100% />
 
 
+
+개인사업자 미등록 고객에 비해 개인사업자 등록 고객에서 **다이너스티, 다이너스티 택시, EQ900 차량** 출고율이 소폭 상승
+
+ 
 
 #### 접촉 정보
 
