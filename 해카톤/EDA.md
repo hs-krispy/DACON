@@ -273,3 +273,43 @@ print(contact[contact.CNTC_CHAN_NM == "응모"]["CNTC_AFFR_SCN_NM"].unique())
 > 2018년에는 보장기간 3년으로 아슬란, 엑센트도 대상차량으로 존재했던 것을 확인
 
 **기존 차량 구매일을 기점으로 3 ~ 5년 사이에 기존 차량을 처분하고 새로운 차량(위의 목록에 해당되는 차량)을 구매하면 대차의 가능성이 높으며 차량 구매 정보가 하나만 존재하는 고객들도 위의 목록에 해당되는 차량을 구매한 경우에는 대차 가능성을 생각해 볼 수 있음**
+
+
+
+차량보유종료일에서 출고일자 사이의 차이를 구한 새로운 column을 생성
+
+<img src="https://user-images.githubusercontent.com/58063806/116884286-89e19680-ac61-11eb-8d9e-dd46c9504594.png" width=30% />
+
+출고일자는 int, 보유종료일자는 float이므로 datetime 형식으로 변환후 차이를 구함
+
+```python
+import datetime as dt
+
+# NaN 값을 임의의 값 20300101로 대체
+cars["CAR_HLDG_FNH_DT"].fillna("20300101", inplace=True)
+
+
+def make_datetime(x):
+    # string 타입의 Time column을 datetime 타입으로 변경
+    x = str(x)
+    year = int(x[:4])
+    month = int(x[4:6])
+    day = int(x[6:8])
+    
+    return dt.datetime(year, month, day)
+
+
+cars["WHOT_DT"] = cars["WHOT_DT"].apply(make_datetime)
+cars["CAR_HLDG_FNH_DT"] = cars["CAR_HLDG_FNH_DT"].apply(make_datetime)
+cars["holding_period"] = cars["CAR_HLDG_FNH_DT"] - cars["WHOT_DT"]
+
+# 차량보유종료일에서 출고일자 사이의 차이가 3 ~ 5년인 정보가 존재하는 고객
+selected_cid = cars[(cars["holding_period"] >= dt.timedelta(days=1095)) & (cars["holding_period"] <= dt.timedelta(days=1825))].CUS_ID.unique()
+# 182733 명
+
+qgrid_widget = qgrid.show_grid(cars[cars["CUS_ID"].isin(selected_cid)], show_toolbar=True)
+qgrid_widget
+# 389874개의 데이터
+```
+
+<img src="https://user-images.githubusercontent.com/58063806/116898616-8e15b000-ac71-11eb-835e-17ac499563cf.png" width=100% />
